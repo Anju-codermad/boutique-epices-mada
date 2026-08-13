@@ -4,6 +4,7 @@ import {
   computeDiscountCents,
   computeOrderTotals,
   computeShippingCents,
+  couponStatus,
   isCouponValid,
 } from '@/lib/pricing';
 import { FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_COST_CENTS } from '@/lib/stripe';
@@ -102,6 +103,47 @@ describe('isCouponValid', () => {
         now
       )
     ).toBe(true);
+  });
+});
+
+describe('couponStatus', () => {
+  const now = new Date('2026-06-01T00:00:00Z');
+  const base = {
+    type: 'PERCENTAGE' as const,
+    value: 10,
+    validFrom: new Date('2026-01-01T00:00:00Z'),
+    validUntil: null,
+    maxUses: null,
+    usedCount: 0,
+  };
+
+  it('SCHEDULED : pas encore commencé', () => {
+    expect(couponStatus({ ...base, validFrom: new Date('2026-07-01T00:00:00Z') }, now)).toBe(
+      'SCHEDULED'
+    );
+  });
+
+  it('EXPIRED : date de fin dépassée', () => {
+    expect(couponStatus({ ...base, validUntil: new Date('2026-05-01T00:00:00Z') }, now)).toBe(
+      'EXPIRED'
+    );
+  });
+
+  it('EXHAUSTED : quota d’utilisation atteint', () => {
+    expect(couponStatus({ ...base, maxUses: 5, usedCount: 5 }, now)).toBe('EXHAUSTED');
+  });
+
+  it('ACTIVE : dans la fenêtre de validité, quota non atteint', () => {
+    expect(couponStatus(base, now)).toBe('ACTIVE');
+  });
+
+  it('priorise EXPIRED sur EXHAUSTED quand les deux sont vrais', () => {
+    expect(
+      couponStatus(
+        { ...base, validUntil: new Date('2026-05-01T00:00:00Z'), maxUses: 5, usedCount: 5 },
+        now
+      )
+    ).toBe('EXPIRED');
   });
 });
 

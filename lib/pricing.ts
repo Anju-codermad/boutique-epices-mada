@@ -1,6 +1,6 @@
 import { FREE_SHIPPING_THRESHOLD_CENTS, SHIPPING_COST_CENTS } from '@/lib/stripe';
 
-interface CouponLike {
+export interface CouponLike {
   type: 'PERCENTAGE' | 'FIXED_AMOUNT';
   value: number;
   validFrom: Date;
@@ -32,6 +32,23 @@ export function isCouponValid(coupon: CouponLike | null, now: Date): coupon is C
     (coupon.validUntil === null || coupon.validUntil >= now) &&
     (coupon.maxUses === null || coupon.usedCount < coupon.maxUses)
   );
+}
+
+export type CouponStatus = 'ACTIVE' | 'SCHEDULED' | 'EXPIRED' | 'EXHAUSTED';
+
+export const couponStatusLabels: Record<CouponStatus, string> = {
+  ACTIVE: 'Actif',
+  SCHEDULED: 'Pas encore actif',
+  EXPIRED: 'Expiré',
+  EXHAUSTED: 'Épuisé (quota atteint)',
+};
+
+/** Statut affichable d'un coupon, plus détaillé que le simple booléen `isCouponValid`. */
+export function couponStatus(coupon: CouponLike, now: Date = new Date()): CouponStatus {
+  if (coupon.validFrom > now) return 'SCHEDULED';
+  if (coupon.validUntil !== null && coupon.validUntil < now) return 'EXPIRED';
+  if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) return 'EXHAUSTED';
+  return 'ACTIVE';
 }
 
 export function computeOrderTotals(

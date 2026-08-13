@@ -696,6 +696,35 @@ strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc d�
       confirmé redirigé (307, middleware). Données de test nettoyées après vérification.
       `typecheck`/`lint`/`test`/`build` rejoués sans régression.
 
+## Fait (gestion admin des coupons)
+
+- [x] **Gap identifié** : les coupons (`Coupon`) n'étaient créables que via `prisma/seed.ts`
+      (un seul, `BIENVENUE10`, codé en dur) — interdit en production par `CLAUDE.md`, donc
+      aucun moyen réel pour la boutique de créer/ajuster un code promo une fois déployée.
+- [x] `lib/money.ts` (nouveau) : `eurosToCentsSchema` extrait de
+      `app/admin/produits/actions.ts` (désormais importé depuis là, sans duplication) — motif
+      identique à `lib/admin.ts` plus tôt dans la session.
+- [x] `lib/pricing.ts` : nouveau `couponStatus()`/`couponStatusLabels` (Actif / Pas encore
+      actif / Expiré / Épuisé), plus fin que le simple booléen `isCouponValid` déjà existant,
+      pour l'affichage admin. 5 nouveaux tests Vitest (`lib/pricing.test.ts`, 35 tests au
+      total désormais).
+- [x] `app/admin/coupons/` (nouveau) : liste (statut, valeur formatée, compteur d'usage),
+      création (code, type pourcentage/montant fixe, dates de validité, quota facultatif —
+      unicité du code gérée en base, message clair sur doublon plutôt que l'erreur Prisma
+      brute), modification (date de fin / quota max, les seuls champs qu'on ajuste
+      réalistement après coup), désactivation immédiate (fixe `validUntil` à maintenant, sans
+      supprimer l'historique), suppression (bloquée avec message explicite si des commandes y
+      sont déjà associées — même garde `P2003` que produits/variantes). Lien « Coupons »
+      ajouté à la nav admin.
+- [x] **Testé de bout en bout** (Postgres local, session JWT admin, Playwright éphémère) :
+      création d'un coupon pourcentage et d'un coupon montant fixe (code mis en majuscules,
+      valeurs correctement formatées, statut « Actif » affiché), tentative de code dupliqué
+      → message d'erreur propre (pas de crash), modification du quota d'utilisation,
+      désactivation (passage à « Expiré »), suppression des deux coupons de test — le coupon
+      réel du seed (`BIENVENUE10`) resté intact tout du long (vérifié). Accès non
+      authentifié confirmé redirigé (307). `typecheck`/`lint`/`test` (35/35)/`build` rejoués
+      sans régression.
+
 ## À faire ensuite
 
 - [ ] Upload Supabase Storage : code écrit et exercé, mais le succès réel du transfert

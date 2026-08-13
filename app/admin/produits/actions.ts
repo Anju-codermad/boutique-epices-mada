@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/admin';
 import { slugify } from '@/lib/slugify';
+import { eurosToCentsSchema } from '@/lib/money';
 import { uploadProductImage, deleteProductImage } from '@/lib/supabase-storage';
 
 const CERTIFICATIONS = ['BIO', 'EQUITABLE'] as const;
@@ -20,18 +21,10 @@ const productSchema = z.object({
   isNew: z.boolean(),
 });
 
-// Les prix sont saisis en euros dans le formulaire (plus lisible pour un humain) et convertis
-// en centimes ici : jamais de centimes accueillis tels quels depuis un champ texte libre.
-const eurosToCents = z.preprocess((value) => {
-  if (typeof value !== 'string') return value;
-  const parsed = Number(value.replace(',', '.').trim());
-  return Number.isFinite(parsed) ? Math.round(parsed * 100) : NaN;
-}, z.number().int().min(1).max(10_000_000));
-
 const variantSchema = z.object({
   sku: z.string().trim().min(2).max(50),
   weightGrams: z.coerce.number().int().min(1).max(100_000),
-  priceTtcCents: eurosToCents,
+  priceTtcCents: eurosToCentsSchema,
   stock: z.coerce.number().int().min(0).max(1_000_000),
 });
 
