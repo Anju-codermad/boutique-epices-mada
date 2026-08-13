@@ -68,6 +68,21 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
       aucun doublon). Un produit (Piment oiseau séché 50g) volontairement à stock 0 pour
       tester l'état "épuisé" en Phase 5. `package.json#prisma.seed` configuré (`tsx`).
 
+## Fait (Jour 7)
+
+- [x] `app/api/products/route.ts` : liste paginée (`page`/`pageSize`), filtres
+      `category`/`certification`/`minPrice`/`maxPrice`, recherche texte `q` (nom +
+      description, insensible à la casse). Validation Zod des query params, 400 si invalides.
+- [x] `app/api/products/[slug]/route.ts` : détail avec variantes, avis **approuvés**
+      uniquement, note moyenne, champ calculé `disponible` (stock total des variantes > 0),
+      404 si introuvable.
+- [x] `lib/products.ts` : sérialisation partagée de la liste (prix min/max, image
+      principale, disponibilité).
+- [x] Testé de bout en bout contre le Postgres local + seed : liste, filtre catégorie,
+      recherche texte, filtre certification (+ 400 sur certification invalide), filtre prix,
+      détail produit (y compris le produit avec une variante à stock 0 →
+      `disponible: true` car une autre variante reste en stock), 404 sur slug inexistant.
+
 ## À faire ensuite (Phase 3 → Phase 4)
 
 - [ ] Résoudre le blocage de push GitHub (voir ci-dessous), ouvrir la PR de cette session.
@@ -80,9 +95,6 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
 - [ ] Ouvrir la démarche de conformité étiquetage/sanitaire UE pour l'import d'épices (humain,
       délai long — ne bloque pas le dev mais bloque le lancement commercial).
 - [ ] Choisir le nom de domaine (humain).
-- [ ] Jour 7 : API routes produits (`app/api/products/route.ts`,
-      `app/api/products/[slug]/route.ts`) — testables de bout en bout dès maintenant grâce au
-      Postgres local + seed.
 - [ ] Jour 8-9 : panier (Zustand), hooks, upload Supabase Storage (ce dernier point restera
       bloqué sans compte Supabase réel).
 
