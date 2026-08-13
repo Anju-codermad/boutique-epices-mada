@@ -1,6 +1,7 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { formatPriceTtc, orderStatusLabels } from '@/lib/orders';
+import { orderStatusLabels } from '@/lib/orders';
+import { formatPriceTtc } from '@/lib/format';
 
 export default async function CommandesPage() {
   const session = await auth();

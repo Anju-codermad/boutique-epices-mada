@@ -143,26 +143,6 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
 - [ ] **Non testable dans cet environnement** : l'envoi réel de l'email de confirmation
       (nécessite un vrai `RESEND_API_KEY`).
 
-## À faire ensuite (Phase 4 → Phase 5)
-
-- [ ] Résoudre le blocage de push GitHub (voir ci-dessous), ouvrir la PR de cette session.
-- [ ] **Validation humaine requise** : relecture visuelle de `/design-system` (Phase 2),
-      relecture du schéma Prisma + données de seed (Phase 3), test réel de connexion par
-      email et de réception de l'email de confirmation newsletter une fois `RESEND_API_KEY`
-      fourni (Phase 4).
-- [ ] Créer les comptes Vercel / Supabase (humain).
-- [ ] Récupérer la chaîne de connexion Supabase, renseigner `.env`, puis rejouer
-      `npx prisma migrate dev` contre la vraie base (bloqué tant que non fourni).
-- [ ] Créer un compte Resend, récupérer `RESEND_API_KEY`, vérifier le domaine d'envoi
-      (nécessaire pour que le magic link et les emails newsletter partent réellement).
-- [ ] Vérifier TVA/OSS auprès d'un comptable (humain).
-- [ ] Ouvrir la démarche de conformité étiquetage/sanitaire UE pour l'import d'épices (humain,
-      délai long — ne bloque pas le dev mais bloque le lancement commercial).
-- [ ] Choisir le nom de domaine (humain).
-- [ ] Jour 9 : upload Supabase Storage — **bloqué** sans compte Supabase réel (bucket +
-      policies à créer par l'humain) ; le code peut être écrit (route protégée par le rôle
-      admin, maintenant disponible via Auth.js) mais pas testé.
-
 ## Fait (Jour 12 — layout global)
 
 - [x] `components/shared/Header.tsx` : logo, méga-menu catégories (données réelles depuis
@@ -246,6 +226,48 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
       à stock 0), section "Produits associés" (testée avec un second produit temporaire dans
       la même catégorie — le seed n'a qu'un produit par catégorie). Données de test
       nettoyées après vérification.
+
+## Fait (Jour 16 — panier et pages légales)
+
+- [x] `lib/format.ts` : `formatPriceTtc()` centralisé — **nettoyage** : la fonction était
+      dupliquée dans `ProductCard`, `ProductPurchasePanel` et `CartDrawer` (et existait déjà,
+      autrement, dans `lib/orders.ts`) ; unifiée à un seul endroit.
+      **Bug récurrent corrigé au passage** : `Button` n'a pas de prop `asChild` (pas de
+      pattern shadcn `Slot`) — utilisé par erreur dans `CartDrawer` comme sur la page
+      d'accueil (Jour 13) ; corrigé en utilisant `buttonVariants` directement sur les `Link`.
+- [x] `components/shared/CartDrawer.tsx` : tiroir panier (quantités, suppression,
+      sous-total TTC, liens "Voir le panier"/"Passer commande"), **piège à focus** complet
+      (Tab/Shift+Tab cyclent dans le tiroir, Échap ferme et restaure le focus sur le bouton
+      déclencheur).
+- [x] `components/shared/Header.tsx` : l'icône panier ouvre désormais le `CartDrawer` au lieu
+      de naviguer directement.
+- [x] `app/panier/page.tsx` : récapitulatif complet (quantités modifiables, suppression,
+      vider le panier), tous les prix explicitement labellisés TTC.
+- [x] `components/shared/LegalReviewNotice.tsx` + `app/cgv`, `app/mentions-legales`,
+      `app/confidentialite` : premier jet des pages légales, avec bandeau d'avertissement
+      "à faire relire par un juriste" sur chacune. CGV incluant explicitement la clause de
+      droit de rétractation de 14 jours (vente à distance UE) et les conditions de retour.
+      Informations d'identification de la société laissées en placeholders `[à compléter]`.
+- [x] **Testé de bout en bout** (Playwright + Postgres local) : ouverture du tiroir panier
+      depuis une fiche produit, **piège à focus vérifié** (10 Tab consécutifs restent dans le
+      tiroir ; Échap ferme le tiroir et rend le focus au bouton panier), page `/panier`
+      complète, rendu des 3 pages légales (bandeau d'avertissement présent, clause 14 jours
+      présente sur les CGV).
+
+## À faire ensuite
+
+- [ ] Jour 17 : contact (formulaire + honeypot), FAQ, pages d'erreur (404/500) — prochaine
+      étape.
+- [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
+      (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
+      le rôle admin, disponible depuis le Jour 10) mais pas testé.
+- [ ] Phase 6 (paiement Stripe) : nécessitera un compte Stripe (humain) avant de pouvoir
+      tester réellement le tunnel de paiement, bien que le code puisse être écrit avant.
+- [ ] **Validation humaine requise** : relecture visuelle (`/design-system`, page d'accueil,
+      catalogue), relecture du schéma Prisma + données de seed, relecture juridique des
+      pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà en place sur
+      chacune), test réel de connexion par email et de réception des emails newsletter une
+      fois `RESEND_API_KEY` fourni.
 
 ## Points de blocage humains ouverts
 

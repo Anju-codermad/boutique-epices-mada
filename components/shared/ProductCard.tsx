@@ -7,11 +7,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/Card';
 import { useCart } from '@/hooks/useCart';
+import { formatPriceTtc } from '@/lib/format';
 import type { ProductListItem } from '@/types/product';
-
-function formatPriceTtc(cents: number): string {
-  return `${(cents / 100).toFixed(2).replace('.', ',')} € TTC`;
-}
 
 export function ProductCard({ product }: { product: ProductListItem }) {
   const addItem = useCart((state) => state.addItem);

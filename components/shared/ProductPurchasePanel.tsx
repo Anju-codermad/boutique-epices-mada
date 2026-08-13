@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/hooks/useCart';
+import { formatPriceTtc } from '@/lib/format';
 
 interface Variant {
   id: string;
@@ -18,10 +19,6 @@ interface ProductPurchasePanelProps {
   productName: string;
   image: string | null;
   variants: Variant[];
-}
-
-function formatPriceTtc(cents: number): string {
-  return `${(cents / 100).toFixed(2).replace('.', ',')} € TTC`;
 }
 
 export function ProductPurchasePanel({
