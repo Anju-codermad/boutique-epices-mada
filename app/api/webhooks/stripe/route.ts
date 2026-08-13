@@ -3,6 +3,7 @@ import type Stripe from 'stripe';
 
 import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
+import { sendOrderConfirmationEmail } from '@/lib/emails';
 
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
@@ -43,7 +44,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   try {
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { items: true },
+      include: { items: { include: { variant: { include: { product: true } } } } },
     });
 
     if (!order) {
@@ -92,6 +93,24 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         },
       }),
     ]);
+
+    const recipientEmail = customerDetails?.email;
+    if (recipientEmail) {
+      const subtotalTtcCents = order.totalTtcCents - order.shippingCents + order.discountCents;
+      await sendOrderConfirmationEmail(recipientEmail, {
+        orderId: order.id,
+        items: order.items.map((item) => ({
+          name: item.variant.product.name,
+          weightGrams: item.variant.weightGrams,
+          quantity: item.quantity,
+          unitPriceTtcCents: item.unitPriceTtcCents,
+        })),
+        subtotalTtcCents,
+        shippingCents: order.shippingCents,
+        discountCents: order.discountCents,
+        totalTtcCents: order.totalTtcCents,
+      });
+    }
   } catch (error) {
     console.error('Erreur lors du traitement du webhook Stripe checkout.session.completed', error);
   }

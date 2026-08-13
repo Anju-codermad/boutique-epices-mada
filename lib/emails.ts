@@ -1,5 +1,14 @@
 import { resend, EMAIL_FROM } from '@/lib/resend';
 import { getAppUrl } from '@/lib/url';
+import OrderConfirmationEmail, {
+  type OrderConfirmationEmailProps,
+} from '@/emails/OrderConfirmationEmail';
+import ShippingNotificationEmail, {
+  type ShippingNotificationEmailProps,
+} from '@/emails/ShippingNotificationEmail';
+import RefundConfirmationEmail, {
+  type RefundConfirmationEmailProps,
+} from '@/emails/RefundConfirmationEmail';
 
 function escapeHtml(value: string): string {
   return value
@@ -49,5 +58,35 @@ export async function sendContactEmail({
       <p><strong>Message :</strong></p>
       <p>${escapeHtml(message).replace(/\n/g, '<br />')}</p>
     `,
+  });
+}
+
+export async function sendOrderConfirmationEmail(to: string, props: OrderConfirmationEmailProps) {
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to,
+    subject: `Confirmation de votre commande #${props.orderId.slice(-8)}`,
+    react: OrderConfirmationEmail(props),
+  });
+}
+
+export async function sendShippingNotificationEmail(
+  to: string,
+  props: ShippingNotificationEmailProps
+) {
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to,
+    subject: `Votre commande #${props.orderId.slice(-8)} a été expédiée`,
+    react: ShippingNotificationEmail(props),
+  });
+}
+
+export async function sendRefundConfirmationEmail(to: string, props: RefundConfirmationEmailProps) {
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to,
+    subject: `Remboursement de votre commande #${props.orderId.slice(-8)}`,
+    react: RefundConfirmationEmail(props),
   });
 }

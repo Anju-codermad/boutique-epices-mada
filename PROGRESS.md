@@ -345,13 +345,40 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
 - [ ] **Non testable dans cet environnement** : réception d'un vrai webhook envoyé par
       Stripe — nécessite un compte Stripe réel avec `STRIPE_WEBHOOK_SECRET` configuré.
 
+## Fait (Jour 20 — emails transactionnels, page admin commandes)
+
+- [x] `emails/OrderConfirmationEmail.tsx`, `ShippingNotificationEmail.tsx`,
+      `RefundConfirmationEmail.tsx` : trois templates React Email (`@react-email/components`).
+- [x] `lib/emails.ts` : `sendOrderConfirmationEmail`/`sendShippingNotificationEmail`/
+      `sendRefundConfirmationEmail`, envoi via Resend (`react:` directement, sans rendu
+      manuel).
+- [x] `app/api/webhooks/stripe/route.ts` : envoie l'email de confirmation de commande juste
+      après le passage à `PAID` (best-effort — un échec d'envoi ne fait pas échouer le
+      traitement, la commande reste payée).
+- [x] `app/admin/commandes/` : liste des commandes (hors `PENDING`), formulaire par commande
+      pour changer le statut et renseigner suivi/transporteur (Server Action protégée par
+      rôle admin) ; passer une commande à `SHIPPED` avec suivi + transporteur renseignés
+      déclenche l'email d'expédition.
+- [x] **Non retenu, compromis assumé** : le Jour 20 du plan demandait aussi de refaire le
+      formulaire d'adresse avec react-hook-form. Un CRUD d'adresses Zod-validé existe déjà
+      depuis le Jour 10 (`/compte/adresses`) et fonctionne correctement ; le réécrire avec
+      react-hook-form n'apportait pas de valeur fonctionnelle nouvelle, priorité donnée à la
+      page admin commandes (plus structurante pour le tunnel de vente).
+- [x] **Testé de bout en bout** (Playwright + Postgres local) : les 3 templates rendus et
+      vérifiés visuellement (via une route de prévisualisation temporaire, supprimée après
+      usage — un dossier `_preview-email` avait d'abord été essayé et donnait un 404, Next.js
+      traite tout segment préfixé `_` comme privé/hors routage), page admin commandes
+      (changement de statut + suivi vérifié en base, tentative d'envoi de l'email
+      d'expédition confirmée dans les logs). Données de test nettoyées après vérification.
+- [ ] **Non testable dans cet environnement** : réception réelle des emails (nécessite
+      `RESEND_API_KEY`).
+
 ## À faire ensuite
 
 - [ ] Résoudre le blocage de push GitHub, ouvrir la PR de cette session.
-- [ ] Jour 20-21 : emails transactionnels (React Email), formulaire d'adresse, page admin
-      commandes (statut + suivi de colis), page de confirmation, tunnel complet avec cartes
-      de test Stripe — **nécessitera un vrai compte Stripe (clés de test) pour être testé en
-      conditions réelles**.
+- [ ] Jour 21 : `app/commande/confirmation/page.tsx`, test du tunnel complet avec les cartes
+      de test Stripe (4242.../4000...0002) et un parcours avec coupon — **nécessitera un vrai
+      compte Stripe (clés de test) pour être testé en conditions réelles**.
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
