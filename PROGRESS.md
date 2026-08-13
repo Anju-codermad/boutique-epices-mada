@@ -225,6 +225,28 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
       toutes ses variantes** (état non couvert par le jeu de seed), stock restauré après
       test.
 
+## Fait (Jour 15 — page produit)
+
+- [x] `lib/products.ts` étendu (même refactor qu'au Jour 14) : `getProductDetail(slug)` et
+      `getRelatedProducts(categoryId, excludeId)` partagés entre `app/api/products/[slug]`
+      et `app/produits/[slug]`.
+- [x] `components/shared/ProductGallery.tsx` : galerie avec miniatures cliquables (gère 0, 1
+      ou plusieurs images).
+- [x] `components/shared/ProductPurchasePanel.tsx` : sélecteur de variante (prix dynamique,
+      variantes en rupture désactivées individuellement), quantité, ajout au panier ; si
+      **aucune** variante en stock, bouton désactivé avec le message exact du plan "Épuisé —
+      être prévenu du retour" + lien vers la newsletter (ancre `#newsletter` ajoutée au
+      Footer).
+- [x] `app/produits/[slug]/page.tsx` : fil d'Ariane, badges, description, avis clients
+      **réels** (approuvés uniquement, note moyenne), produits associés (même catégorie),
+      404 via `notFound()`, `generateMetadata` (title/description).
+- [x] **Testé de bout en bout** (Playwright + Postgres local + seed) : sélection de variante
+      et ajout au panier (badge vérifié), 404 sur slug inexistant, état "épuisé" avec message
+      et lien newsletter (testé en repassant temporairement toutes les variantes d'un produit
+      à stock 0), section "Produits associés" (testée avec un second produit temporaire dans
+      la même catégorie — le seed n'a qu'un produit par catégorie). Données de test
+      nettoyées après vérification.
+
 ## Points de blocage humains ouverts
 
 - **Push GitHub bloqué** : l'app GitHub connectée à cette session n'a pas la permission

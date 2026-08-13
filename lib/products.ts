@@ -152,3 +152,70 @@ export async function queryProducts({
     pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
   };
 }
+
+const productDetailSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  description: true,
+  certifications: true,
+  isNew: true,
+  categoryId: true,
+  category: { select: { name: true, slug: true } },
+  variants: {
+    orderBy: { weightGrams: 'asc' as const },
+    select: { id: true, sku: true, weightGrams: true, priceTtcCents: true, stock: true },
+  },
+  images: {
+    orderBy: { position: 'asc' as const },
+    select: { url: true, alt: true, position: true },
+  },
+  reviews: {
+    where: { status: 'APPROVED' as const },
+    orderBy: { createdAt: 'desc' as const },
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      createdAt: true,
+      user: { select: { name: true } },
+    },
+  },
+} satisfies Prisma.ProductSelect;
+
+/**
+ * Requête détail produit partagée entre app/api/products/[slug] (fetch
+ * client) et app/produits/[slug] (rendu serveur), même logique qu'au
+ * Jour 14 pour la liste.
+ */
+export async function getProductDetail(slug: string) {
+  const product = await prisma.product.findUnique({
+    where: { slug },
+    select: productDetailSelect,
+  });
+
+  if (!product) {
+    return null;
+  }
+
+  const disponible = product.variants.some((variant) => variant.stock > 0);
+  const averageRating =
+    product.reviews.length > 0
+      ? product.reviews.reduce((sum, review) => sum + review.rating, 0) / product.reviews.length
+      : null;
+
+  const { categoryId, ...rest } = product;
+
+  return { ...rest, categoryId, disponible, averageRating };
+}
+
+export async function getRelatedProducts(categoryId: string, excludeProductId: string, take = 4) {
+  const related = await prisma.product.findMany({
+    where: { categoryId, id: { not: excludeProductId } },
+    select: productListSelect,
+    take,
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return related.map(serializeProductListItem);
+}

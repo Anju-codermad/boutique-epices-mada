@@ -6,7 +6,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border bg-muted/40">
       <div className="container grid gap-10 py-12 md:grid-cols-3">
-        <div>
+        <div id="newsletter">
           <h2 className="font-serif text-lg font-semibold text-forest">Newsletter</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Recevez nos actualités et nouveautés — pas de spam, désinscription en un clic.
