@@ -5,11 +5,12 @@ détail de chaque phase/jour.
 
 ## État actuel
 
-Phase 2 (design system de base) terminée. `build`, `lint`, `typecheck` et `format:check`
-passent tous. Vérifié visuellement en local (`/design-system`) via un serveur de dev +
-capture d'écran Playwright ponctuelle (Playwright retiré ensuite, pas encore dans le
-périmètre du projet). Le push vers GitHub est actuellement bloqué (voir "Points de blocage"
-ci-dessous) ; le travail est commité localement en attendant.
+Phase 3 (Jour 5 — schéma Prisma) terminée pour la partie faisable sans base réelle :
+schéma complet écrit, validé (`prisma validate`), client généré (`prisma generate`), et SQL
+de migration vérifié (`prisma migrate diff`). `npx prisma migrate dev` n'a **pas** été
+exécuté — nécessite une vraie connexion Supabase (humain). `build`, `lint`, `typecheck` et
+`format:check` passent tous. Le push vers GitHub est actuellement bloqué (voir "Points de
+blocage" ci-dessous) ; le travail est commité localement en attendant.
 
 ## Fait
 
@@ -45,22 +46,40 @@ ci-dessous) ; le travail est commité localement en attendant.
 - [x] `app/design-system/page.tsx` : page de validation visuelle de la palette, typographie,
       badges, boutons, exemple de carte produit.
 
-## À faire ensuite (Phase 2 → Phase 3)
+## Fait (Phase 3, partiel)
+
+- [x] `prisma/schema.prisma` complet : `User`/`Account`/`Session`/`VerificationToken`
+      (Auth.js, `User.role`), `Category`, `Product` (+ `certifications: CertificationType[]`,
+      `isNew`), `Variant` (poids, `priceTtcCents`, stock, `sku`), `ProductImage`, `Review`
+      (statut pending/approved), `Address`, `Coupon` (pourcentage/montant fixe, validité),
+      `Order` (statuts incluant `RETURN_REQUESTED`/`RETURNED`/`REFUNDED`, `trackingNumber`,
+      `carrier`, guest checkout via `guestEmail`/`userId` optionnel), `OrderItem` (prix figé
+      à l'achat), `NewsletterSubscriber` (statut pending/confirmed).
+      Prix et montants stockés en **centimes** (entiers) pour éviter les erreurs d'arrondi.
+- [x] `prisma validate` + `prisma generate` OK ; `prisma migrate diff --from-empty` vérifié
+      (SQL de création cohérent) — mais **aucune migration réellement appliquée**, pas de
+      base de données disponible.
+- [x] `lib/prisma.ts` : client Prisma singleton (pattern standard Next.js dev/hot-reload).
+
+## À faire ensuite (Phase 3)
 
 - [ ] Résoudre le blocage de push GitHub (voir ci-dessous), ouvrir la PR de cette session.
-- [ ] **Validation humaine requise** : relecture visuelle de `/design-system` (déclenche la
-      case "Phase 2" de la check-list de validation par phase).
+- [ ] **Validation humaine requise** : relecture visuelle de `/design-system` (Phase 2) et
+      relecture du schéma Prisma (Phase 3).
 - [ ] Créer les comptes Vercel / Supabase (humain).
-- [ ] Récupérer la chaîne de connexion Supabase et renseigner `.env` (humain).
+- [ ] Récupérer la chaîne de connexion Supabase, renseigner `.env`, puis lancer
+      `npx prisma migrate dev --name init` (bloqué tant que non fourni).
 - [ ] Vérifier TVA/OSS auprès d'un comptable (humain).
 - [ ] Ouvrir la démarche de conformité étiquetage/sanitaire UE pour l'import d'épices (humain,
       délai long — ne bloque pas le dev mais bloque le lancement commercial).
 - [ ] Choisir le nom de domaine (humain).
-- [ ] Phase 3 (Jour 5) : schéma Prisma complet (Product, Variant, Category, ProductImage,
-      Order, OrderItem, Review, Address, Coupon, NewsletterSubscriber, modèles Auth.js) —
-      nécessite une vraie base Supabase pour lancer `prisma migrate dev` (bloqué tant que les
-      identifiants Supabase ne sont pas fournis ; le schéma peut être écrit et validé avec
-      `prisma validate`/`generate` sans connexion réelle).
+- [ ] Jour 6 : `prisma/seed.ts` (7 familles de produits, 2-3 variantes chacune) — peut être
+      écrit dès maintenant, mais ne pourra être **exécuté** qu'une fois une base réelle
+      disponible (rappel : jamais en production).
+- [ ] Jour 7 : API routes produits (`app/api/products/route.ts`,
+      `app/api/products/[slug]/route.ts`) — peuvent être écrites et testées unitairement dès
+      maintenant sur le schéma, mais ne seront testables de bout en bout qu'avec une base
+      réelle.
 
 ## Points de blocage humains ouverts
 
