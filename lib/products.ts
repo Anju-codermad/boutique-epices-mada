@@ -7,7 +7,10 @@ const productListSelect = {
   certifications: true,
   isNew: true,
   category: { select: { name: true, slug: true } },
-  variants: { select: { priceTtcCents: true, stock: true } },
+  variants: {
+    select: { id: true, priceTtcCents: true, stock: true, weightGrams: true },
+    orderBy: { priceTtcCents: 'asc' as const },
+  },
   images: {
     orderBy: { position: 'asc' as const },
     take: 1,
@@ -20,6 +23,9 @@ type ProductListRow = Prisma.ProductGetPayload<{ select: typeof productListSelec
 export function serializeProductListItem(product: ProductListRow) {
   const prices = product.variants.map((v) => v.priceTtcCents);
   const disponible = product.variants.some((v) => v.stock > 0);
+  // Variante par défaut pour l'ajout rapide : la moins chère parmi celles en stock,
+  // sinon la moins chère tout court (désactivée côté UI si le produit est épuisé).
+  const defaultVariant = product.variants.find((v) => v.stock > 0) ?? product.variants[0] ?? null;
 
   return {
     id: product.id,
@@ -32,6 +38,14 @@ export function serializeProductListItem(product: ProductListRow) {
     maxPriceTtcCents: prices.length > 0 ? Math.max(...prices) : null,
     category: product.category,
     image: product.images[0] ?? null,
+    defaultVariant: defaultVariant
+      ? {
+          id: defaultVariant.id,
+          priceTtcCents: defaultVariant.priceTtcCents,
+          stock: defaultVariant.stock,
+          weightGrams: defaultVariant.weightGrams,
+        }
+      : null,
   };
 }
 

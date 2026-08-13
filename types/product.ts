@@ -22,6 +22,25 @@ export interface ProductReview {
   user: { name: string | null };
 }
 
+export interface ProductListItem {
+  id: string;
+  name: string;
+  slug: string;
+  certifications: CertificationType[];
+  isNew: boolean;
+  disponible: boolean;
+  minPriceTtcCents: number | null;
+  maxPriceTtcCents: number | null;
+  category: { name: string; slug: string };
+  image: { url: string; alt: string } | null;
+  defaultVariant: {
+    id: string;
+    priceTtcCents: number;
+    stock: number;
+    weightGrams: number;
+  } | null;
+}
+
 export interface ProductDetail {
   id: string;
   name: string;

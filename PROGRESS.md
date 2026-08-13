@@ -187,6 +187,24 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
       vérifié après rechargement), rendu du footer. Données de test nettoyées après
       vérification.
 
+## Fait (Jour 13 — page d'accueil)
+
+- [x] `components/shared/ProductCard.tsx` (introduit ici, réutilisé Jour 14) : image ou
+      placeholder, badges bio/équitable/nouveau, badge épuisé, prix (fourchette si plusieurs
+      variantes), bouton "Ajout rapide au panier" désactivé si épuisé, connecté à `useCart`.
+- [x] `lib/products.ts` étendu : `productListSelect`/`serializeProductListItem` exposent
+      désormais `defaultVariant` (variante la moins chère en stock, sinon la moins chère tout
+      court) pour permettre l'ajout rapide sans requête supplémentaire.
+- [x] `next.config.mjs` : `images.remotePatterns` pré-configuré pour `*.supabase.co` (aucune
+      image réelle disponible pour l'instant, mais évite un blocage futur).
+- [x] `app/page.tsx` : Hero (accroche, CTA), grille des 7 catégories (données réelles),
+      section "Nos nouveautés" (produits `isNew`, `ProductCard`), storytelling commerce
+      équitable, bandeau de réassurance (livraison/paiement/origine/équitable).
+- [x] **Testé de bout en bout** (Playwright + Postgres local + seed) : rendu complet de la
+      page, ajout rapide au panier depuis la page d'accueil (badge panier vérifié). **Bug de
+      contraste détecté et corrigé** : le sous-titre du hero était en `text-forest-light` sur
+      fond `bg-forest`, quasiment illisible — corrigé en `text-white/85`.
+
 ## Points de blocage humains ouverts
 
 - **Push GitHub bloqué** : l'app GitHub connectée à cette session n'a pas la permission
