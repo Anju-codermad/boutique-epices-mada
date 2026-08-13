@@ -680,6 +680,22 @@ strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc d�
       d'envoi d'image a été exercé (requête traitée sans crash côté serveur), mais le
       succès effectif du transfert ne peut être confirmé sans compte réel.
 
+## Fait (tableau de bord admin)
+
+- [x] `app/admin/page.tsx` (nouveau) : `/admin` n'avait pas de page racine — accès direct en
+      404, contrairement à `/compte` qui redirige vers ses commandes. Ajoute 4 indicateurs
+      (commandes `PAID` à traiter, retours `RETURN_REQUESTED`, avis `PENDING` à modérer,
+      produits dont toutes les variantes sont à stock 0), chacun lié à sa section, mis en
+      évidence en couleur terracotta si non nul. Lien « Tableau de bord » ajouté en tête de
+      la nav admin (`app/admin/layout.tsx`).
+- [x] **Testé de bout en bout** (Postgres local, session JWT admin, Playwright éphémère) :
+      capture d'écran avec les 4 compteurs à 0, puis données de test créées directement en
+      base (une commande `PAID`, une `RETURN_REQUESTED`, un avis `PENDING`, un produit
+      remis temporairement à stock 0 sur toutes ses variantes) — les 4 compteurs passent
+      bien à 1 et la mise en forme terracotta s'affiche ; accès non authentifié à `/admin`
+      confirmé redirigé (307, middleware). Données de test nettoyées après vérification.
+      `typecheck`/`lint`/`test`/`build` rejoués sans régression.
+
 ## À faire ensuite
 
 - [ ] Upload Supabase Storage : code écrit et exercé, mais le succès réel du transfert
