@@ -5,10 +5,11 @@ détail de chaque phase/jour.
 
 ## État actuel
 
-Phase 3 (Jour 5 — schéma Prisma) terminée pour la partie faisable sans base réelle :
-schéma complet écrit, validé (`prisma validate`), client généré (`prisma generate`), et SQL
-de migration vérifié (`prisma migrate diff`). `npx prisma migrate dev` n'a **pas** été
-exécuté — nécessite une vraie connexion Supabase (humain). `build`, `lint`, `typecheck` et
+Phase 3 (Jour 5 et 6) terminée. Un Postgres 16 local (installé dans l'environnement
+d'exécution, pas Supabase) a permis de réellement exécuter `prisma migrate dev --name init`
+et `prisma db seed` de bout en bout — la migration réelle est committée dans
+`prisma/migrations/`. Il faudra la réappliquer (ou la revalider) contre la vraie base
+Supabase une fois les identifiants disponibles. `build`, `lint`, `typecheck` et
 `format:check` passent tous. Le push vers GitHub est actuellement bloqué (voir "Points de
 blocage" ci-dessous) ; le travail est commité localement en attendant.
 
@@ -56,30 +57,34 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
       `carrier`, guest checkout via `guestEmail`/`userId` optionnel), `OrderItem` (prix figé
       à l'achat), `NewsletterSubscriber` (statut pending/confirmed).
       Prix et montants stockés en **centimes** (entiers) pour éviter les erreurs d'arrondi.
-- [x] `prisma validate` + `prisma generate` OK ; `prisma migrate diff --from-empty` vérifié
-      (SQL de création cohérent) — mais **aucune migration réellement appliquée**, pas de
-      base de données disponible.
+- [x] `prisma validate` + `prisma generate` OK. Migration réelle générée et appliquée
+      (`prisma migrate dev --name init`) contre un Postgres 16 local temporaire →
+      `prisma/migrations/20260813062148_init/` committée.
 - [x] `lib/prisma.ts` : client Prisma singleton (pattern standard Next.js dev/hot-reload).
+- [x] `prisma/seed.ts` (Jour 6) : 7 familles de produits (Vanille, Poivre sauvage/
+      voatsiperifery, Cannelle, Curcuma, Gingembre, Piment, Coffrets cadeaux), 2-3 variantes
+      chacune, descriptions FR, badges bio/équitable, prix TTC en centimes. `upsert`
+      idempotent (testé : deux exécutions successives → toujours 7 produits / 16 variantes,
+      aucun doublon). Un produit (Piment oiseau séché 50g) volontairement à stock 0 pour
+      tester l'état "épuisé" en Phase 5. `package.json#prisma.seed` configuré (`tsx`).
 
-## À faire ensuite (Phase 3)
+## À faire ensuite (Phase 3 → Phase 4)
 
 - [ ] Résoudre le blocage de push GitHub (voir ci-dessous), ouvrir la PR de cette session.
 - [ ] **Validation humaine requise** : relecture visuelle de `/design-system` (Phase 2) et
-      relecture du schéma Prisma (Phase 3).
+      relecture du schéma Prisma + des données de seed (Phase 3).
 - [ ] Créer les comptes Vercel / Supabase (humain).
-- [ ] Récupérer la chaîne de connexion Supabase, renseigner `.env`, puis lancer
-      `npx prisma migrate dev --name init` (bloqué tant que non fourni).
+- [ ] Récupérer la chaîne de connexion Supabase, renseigner `.env`, puis rejouer
+      `npx prisma migrate dev` contre la vraie base (bloqué tant que non fourni).
 - [ ] Vérifier TVA/OSS auprès d'un comptable (humain).
 - [ ] Ouvrir la démarche de conformité étiquetage/sanitaire UE pour l'import d'épices (humain,
       délai long — ne bloque pas le dev mais bloque le lancement commercial).
 - [ ] Choisir le nom de domaine (humain).
-- [ ] Jour 6 : `prisma/seed.ts` (7 familles de produits, 2-3 variantes chacune) — peut être
-      écrit dès maintenant, mais ne pourra être **exécuté** qu'une fois une base réelle
-      disponible (rappel : jamais en production).
 - [ ] Jour 7 : API routes produits (`app/api/products/route.ts`,
-      `app/api/products/[slug]/route.ts`) — peuvent être écrites et testées unitairement dès
-      maintenant sur le schéma, mais ne seront testables de bout en bout qu'avec une base
-      réelle.
+      `app/api/products/[slug]/route.ts`) — testables de bout en bout dès maintenant grâce au
+      Postgres local + seed.
+- [ ] Jour 8-9 : panier (Zustand), hooks, upload Supabase Storage (ce dernier point restera
+      bloqué sans compte Supabase réel).
 
 ## Points de blocage humains ouverts
 
