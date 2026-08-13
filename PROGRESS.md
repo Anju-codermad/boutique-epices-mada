@@ -94,20 +94,50 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
 - [x] `hooks/useProduct.ts` : fetch `/api/products/[slug]`, états loading/error/404.
 - [x] `types/product.ts` : types partagés `ProductDetail`/`ProductVariant`/etc.
 
-## À faire ensuite (Phase 3 → Phase 4)
+## Fait (Jour 10 — Auth.js, avant Jour 9 car l'upload en dépend)
+
+- [x] Auth.js v5 configuré : `auth.config.ts` (config compatible Edge — sans adapter Prisma
+      ni provider Resend, utilisée par le middleware) + `auth.ts` (config complète, adapter
+      Prisma + provider `Resend` pour le magic link) — **découplage nécessaire** : mettre
+      Prisma/Resend directement dans le middleware casse le build (APIs Node.js absentes du
+      runtime Edge de Next.js).
+- [x] `middleware.ts` : protège `/compte/*` (redirection `/connexion` si non connecté) et
+      `/admin/*` (redirection si non connecté **ou** rôle ≠ `ADMIN`, + re-authentification
+      forcée après 2h via `session.iat`, plus stricte que la zone client standard).
+- [x] `app/connexion/page.tsx` : formulaire magic link (Server Action `signIn("resend", ...)`).
+- [x] `app/compte/` : layout + 3 sous-pages avec Server Actions Zod-validées —
+      `commandes` (historique + suivi de colis si renseigné), `adresses` (CRUD complet),
+      `informations` (modification du nom).
+- [x] `types/next-auth.d.ts` : augmentation de types (`role` sur `User`/`AdapterUser`/`JWT`,
+      `Session.user.id`/`role`/`iat`).
+- [x] **Testé de bout en bout** contre le Postgres local avec un utilisateur de test et un
+      cookie de session JWT signé manuellement (pas de vrai Resend disponible) : middleware
+      (redirections `/compte` et `/admin`), page connexion (capture d'écran), commandes
+      (affichage tracking), adresses (création **et** suppression confirmées en base), mise à
+      jour des informations personnelles. Données de test nettoyées après vérification.
+- [ ] **Non testable dans cet environnement** : l'envoi réel du magic link (nécessite un vrai
+      `RESEND_API_KEY`) et donc la connexion "pour de vrai" par un humain.
+
+## À faire ensuite (Phase 4 → Phase 5)
 
 - [ ] Résoudre le blocage de push GitHub (voir ci-dessous), ouvrir la PR de cette session.
-- [ ] **Validation humaine requise** : relecture visuelle de `/design-system` (Phase 2) et
-      relecture du schéma Prisma + des données de seed (Phase 3).
+- [ ] **Validation humaine requise** : relecture visuelle de `/design-system` (Phase 2),
+      relecture du schéma Prisma + données de seed (Phase 3), test réel de connexion par
+      email une fois `RESEND_API_KEY` fourni (Phase 4).
 - [ ] Créer les comptes Vercel / Supabase (humain).
 - [ ] Récupérer la chaîne de connexion Supabase, renseigner `.env`, puis rejouer
       `npx prisma migrate dev` contre la vraie base (bloqué tant que non fourni).
+- [ ] Créer un compte Resend, récupérer `RESEND_API_KEY`, vérifier le domaine d'envoi
+      (nécessaire pour que le magic link parte réellement — bloqué tant que non fourni).
 - [ ] Vérifier TVA/OSS auprès d'un comptable (humain).
 - [ ] Ouvrir la démarche de conformité étiquetage/sanitaire UE pour l'import d'épices (humain,
       délai long — ne bloque pas le dev mais bloque le lancement commercial).
 - [ ] Choisir le nom de domaine (humain).
 - [ ] Jour 9 : upload Supabase Storage — **bloqué** sans compte Supabase réel (bucket +
-      policies à créer par l'humain).
+      policies à créer par l'humain) ; le code peut être écrit (route protégée par le rôle
+      admin, maintenant disponible via Auth.js) mais pas testé.
+- [ ] Jour 11 : avis clients (modération admin) et newsletter double opt-in (envoi Resend —
+      même limitation que le magic link : code écrit, envoi réel non testable ici).
 
 ## Points de blocage humains ouverts
 
