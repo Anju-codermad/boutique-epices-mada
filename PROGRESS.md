@@ -162,8 +162,30 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
 - [ ] Jour 9 : upload Supabase Storage — **bloqué** sans compte Supabase réel (bucket +
       policies à créer par l'humain) ; le code peut être écrit (route protégée par le rôle
       admin, maintenant disponible via Auth.js) mais pas testé.
-- [ ] Phase 5 (Jour 12+) : layout global (Header/Footer avec recherche et inscription
-      newsletter), pages essentielles du frontend.
+
+## Fait (Jour 12 — layout global)
+
+- [x] `components/shared/Header.tsx` : logo, méga-menu catégories (données réelles depuis
+      Prisma), `SearchBar` connectée à `/api/products` (suggestions live + lien "voir tous les
+      résultats"), icône panier avec compteur (`useCartItemCount`), état de connexion
+      (nom + déconnexion, ou lien connexion), menu burger responsive.
+- [x] `components/shared/Footer.tsx` : formulaire newsletter (`NewsletterForm`, appelle
+      `/api/newsletter/subscribe`), liens légaux (CGV, mentions légales, confidentialité, FAQ,
+      contact — pages pas encore créées, Jours 16-17), réseaux sociaux.
+      **Icônes Facebook/Instagram indisponibles** : `lucide-react` a retiré les icônes de
+      marques ; remplacées par des liens texte.
+- [x] `app/actions/auth-actions.ts` : `signOutAction` (Server Action, utilisée par le bouton
+      déconnexion dans un composant client).
+- [x] `app/layout.tsx` : Header/Footer intégrés au layout racine (récupère `session` via
+      `auth()` et `categories` via Prisma). **Effet de bord accepté** : le layout devient
+      async et utilise `cookies` (via `auth()`), donc **toutes les pages passent en rendu
+      dynamique** (plus de génération statique) — compromis normal pour un header conscient
+      de la session, à revisiter en Phase 8 (perf) si besoin.
+- [x] **Testé de bout en bout** avec le Postgres local + Playwright : méga-menu (7
+      catégories réelles), recherche live (suggestions + lien vers résultats), menu mobile
+      responsive, état connecté (nom affiché) et déconnexion (cookie de session supprimé,
+      vérifié après rechargement), rendu du footer. Données de test nettoyées après
+      vérification.
 
 ## Points de blocage humains ouverts
 
