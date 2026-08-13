@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
 import { prisma } from '@/lib/prisma';
 import {
@@ -9,6 +10,12 @@ import {
 } from '@/lib/products';
 import { ProductCard } from '@/components/shared/ProductCard';
 import type { CertificationType } from '@prisma/client';
+
+export const metadata: Metadata = {
+  title: 'Boutique',
+  description:
+    'Toutes nos épices de Madagascar : vanille, poivre sauvage, cannelle, curcuma, gingembre, piment et coffrets cadeaux. Filtrez par catégorie, certification et prix.',
+};
 
 const sortLabels: Record<ProductSort, string> = {
   newest: 'Nouveautés',
@@ -183,6 +190,7 @@ export default async function BoutiquePage({
         </form>
 
         <div>
+          <h2 className="sr-only">Produits</h2>
           {products.length === 0 ? (
             <p className="text-muted-foreground">Aucun produit ne correspond à votre recherche.</p>
           ) : (
@@ -194,7 +202,10 @@ export default async function BoutiquePage({
           )}
 
           {pagination.totalPages > 1 ? (
-            <nav className="mt-8 flex items-center justify-center gap-2 text-sm">
+            <nav
+              aria-label="Pagination"
+              className="mt-8 flex items-center justify-center gap-2 text-sm"
+            >
               {Array.from({ length: pagination.totalPages }, (_, i) => i + 1).map((p) => (
                 <Link
                   key={p}

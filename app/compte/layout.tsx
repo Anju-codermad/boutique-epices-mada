@@ -1,6 +1,13 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 
 import { auth } from '@/auth';
+import { NOINDEX_ROBOTS } from '@/lib/seo';
+
+export const metadata: Metadata = {
+  title: 'Mon compte',
+  robots: NOINDEX_ROBOTS,
+};
 
 export default async function CompteLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

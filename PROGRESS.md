@@ -436,12 +436,63 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
       logique métier autour de l'appel est entièrement vérifiée, mais l'appel lui-même
       nécessitera un vrai compte Stripe (clés de test) pour être validé en conditions réelles.
 
+## Fait (Phase 8 — SEO, accessibilité, RGPD, analytics)
+
+- [x] **SEO** : `metadataBase` + template de titre (`%s — Boutique d'épices de Madagascar`)
+      centralisés dans `app/layout.tsx` (`lib/seo.ts` pour les constantes partagées),
+      Open Graph/Twitter card par défaut. Toutes les pages qui avaient déjà un titre complet
+      manuel (`cgv`, `confidentialite`, `contact`, `faq`, `mentions-legales`,
+      `produits/[slug]`) adaptées au template pour éviter le double suffixe. Métadonnées
+      (titre + description) ajoutées aux pages qui n'en avaient aucune (`boutique`) ;
+      `robots: { index: false, follow: false }` ajouté sur les pages privées/sans intérêt
+      SEO (`panier` via un nouveau `layout.tsx` — page client, `connexion`,
+      `commande/confirmation`, tout `/compte/*` via `compte/layout.tsx`, tout `/admin/*` via
+      un nouveau `admin/layout.tsx`, `newsletter/confirmation`,
+      `newsletter/desinscription`, `design-system`).
+- [x] `app/robots.ts` et `app/sitemap.ts` (dynamiques, App Router) : sitemap listant les
+      pages statiques, les catégories et tous les produits (avec `lastModified`) ; robots.txt
+      excluant `/admin`, `/compte`, `/panier`, `/connexion`, `/commande/confirmation`, `/api`.
+- [x] Données structurées JSON-LD `Product` (schema.org) sur la fiche produit — nom,
+      description, images, `AggregateOffer` (prix min/max TTC, disponibilité),
+      `AggregateRating` si des avis existent.
+- [x] **Accessibilité** : lien d'évitement (« Aller au contenu principal ») ajouté dans
+      `app/layout.tsx`. Audit automatisé (axe-core via Playwright, éphémère) sur les pages
+      clés (accueil, boutique, fiche produit, panier, contact, FAQ) : 2 violations réelles
+      trouvées et corrigées — hiérarchie de titres cassée sur `/boutique` (H1 suivi
+      directement d'un H3 dans `ProductCard`, sans H2 intermédiaire : ajout d'un H2
+      `sr-only`), et landmarks `<nav>` non uniques (plusieurs zones de navigation sans nom
+      accessible : `aria-label` ajouté sur la navigation principale et mobile du `Header`, le
+      fil d'ariane de la fiche produit, et la pagination de `/boutique`). Audit rejoué après
+      correction : 0 violation sur les 6 pages testées.
+- [x] **Analytics** : `@vercel/analytics` (composant `<Analytics />` dans `app/layout.tsx`) —
+      cookieless par nature, correspond au choix « Plausible ou Vercel Analytics (sans cookie
+      tiers) » de `CLAUDE.md`. Fonctionne automatiquement une fois déployé sur Vercel, no-op
+      en local.
+- [x] **RGPD** : la page `/confidentialite` mentionnait un bandeau de consentement cookies et
+      des « cookies de mesure d'audience » qui n'existaient pas dans le code. Corrigée pour
+      refléter la réalité technique : seuls des cookies strictement nécessaires (session)
+      sont utilisés, la mesure d'audience est anonymisée et sans cookie (exemptée de
+      consentement selon les recommandations CNIL), donc pas de bandeau cookies affiché —
+      cohérence entre le texte légal et l'implémentation plutôt que l'ajout d'un bandeau
+      superflu.
+- [x] **Testé** : `npm run typecheck`/`lint`/`build` (build de prod confirme la génération
+      statique de `/robots.txt` et `/sitemap.xml`) ; vérifié en local que `/sitemap.xml`
+      liste bien produits/catégories/pages statiques, que `/robots.txt` exclut les bonnes
+      routes, que le JSON-LD et les balises `<title>`/`<meta description>`/OG s'affichent
+      correctement sur une fiche produit réelle, et que `<meta name="robots" content="noindex,
+    nofollow">` est bien présent sur une page admin même authentifiée (session admin
+      simulée par JWT signé).
+
 ## À faire ensuite
 
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
-- [ ] Phase 8 : SEO/perf/a11y/RGPD/analytics.
+- [ ] Phase 9 : tests automatisés (Vitest/Playwright intégrés au dépôt), sécurité (les 5
+      vulnérabilités `npm audit` de niveau élevé identifiées viennent toutes de Next
+      14.2.35/postcss/glob — une montée vers Next 16 les corrigerait mais casserait le choix
+      de stack verrouillé dans `CLAUDE.md` ; à réévaluer en Phase 9 plutôt qu'agir
+      unilatéralement), déploiement.
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
       juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà

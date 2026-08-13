@@ -1,3 +1,5 @@
+import type { Metadata } from 'next';
+
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import {
@@ -8,6 +10,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/Card';
+import { NOINDEX_ROBOTS } from '@/lib/seo';
+
+export const metadata: Metadata = {
+  title: 'Design system',
+  robots: NOINDEX_ROBOTS,
+};
 
 export default function DesignSystemPage() {
   return (
