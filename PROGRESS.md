@@ -83,6 +83,17 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
       détail produit (y compris le produit avec une variante à stock 0 →
       `disponible: true` car une autre variante reste en stock), 404 sur slug inexistant.
 
+## Fait (Jour 8)
+
+- [x] `hooks/useCart.ts` (Zustand + `persist` localStorage) : `addItem`, `removeItem`,
+      `updateQuantity`, `clearCart`, sélecteurs `selectCartTotalTtcCents`/
+      `selectCartItemCount` (+ hooks `useCartTotalTtcCents`/`useCartItemCount`). `addItem`
+      refuse l'ajout si `stock <= 0` et retourne `{ success: false, error }` exploitable par
+      l'UI. Logique vérifiée par un script ad hoc (refus stock 0, ajout, cumul de quantité,
+      total/count, suppression via quantité 0) — pas encore de suite Vitest (prévue Jour 26).
+- [x] `hooks/useProduct.ts` : fetch `/api/products/[slug]`, états loading/error/404.
+- [x] `types/product.ts` : types partagés `ProductDetail`/`ProductVariant`/etc.
+
 ## À faire ensuite (Phase 3 → Phase 4)
 
 - [ ] Résoudre le blocage de push GitHub (voir ci-dessous), ouvrir la PR de cette session.
@@ -95,8 +106,8 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
 - [ ] Ouvrir la démarche de conformité étiquetage/sanitaire UE pour l'import d'épices (humain,
       délai long — ne bloque pas le dev mais bloque le lancement commercial).
 - [ ] Choisir le nom de domaine (humain).
-- [ ] Jour 8-9 : panier (Zustand), hooks, upload Supabase Storage (ce dernier point restera
-      bloqué sans compte Supabase réel).
+- [ ] Jour 9 : upload Supabase Storage — **bloqué** sans compte Supabase réel (bucket +
+      policies à créer par l'humain).
 
 ## Points de blocage humains ouverts
 
