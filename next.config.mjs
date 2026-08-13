@@ -1,3 +1,5 @@
+import { withSentryConfig } from '@sentry/nextjs';
+
 // CSP volontairement permissive sur script-src/style-src ('unsafe-inline', pas de nonce) :
 // une politique stricte à base de nonces nécessite de générer le nonce dans le middleware
 // (aujourd'hui limité aux routes /compte et /admin) et de la vérifier contre un vrai
@@ -43,4 +45,18 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Sans SENTRY_ORG/SENTRY_PROJECT/SENTRY_AUTH_TOKEN (aucun compte Sentry réel pour l'instant),
+// le plugin d'upload des source maps s'auto-désactive proprement au build (pas d'échec).
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: true,
+  // Fait transiter les événements Sentry par une route interne (/monitoring) : reste
+  // conforme à la CSP `connect-src 'self'` sans avoir à y ajouter le domaine Sentry.
+  tunnelRoute: '/monitoring',
+  widenClientFileUpload: true,
+  webpack: {
+    removeDebugLogging: true,
+    automaticVercelMonitors: true,
+  },
+});

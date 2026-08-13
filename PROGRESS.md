@@ -537,7 +537,7 @@ nofollow">` est bien présent sur une page admin même authentifiée (session ad
 - [x] **En-têtes de sécurité** (`next.config.mjs`, `headers()`, appliqués à toutes les
       routes) : `Content-Security-Policy`, `X-Content-Type-Options: nosniff`,
       `X-Frame-Options: DENY` (anti-clickjacking), `Referrer-Policy:
-  strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc désactivés,
+strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc désactivés,
       non utilisés par le site), `Strict-Transport-Security`.
   - **CSP** : `object-src none`, `frame-ancestors none`, `base-uri self`, `form-action self`
     apportent une protection réelle immédiate. `script-src`/`style-src` gardent
@@ -592,14 +592,43 @@ nofollow">` est bien présent sur une page admin même authentifiée (session ad
 
 **Phase 9 terminée** (tests automatisés, sécurité, préparation au déploiement).
 
+## Fait (Phase 10, partiel — monitoring Sentry)
+
+- [x] `@sentry/nextjs` intégré (App Router, `instrumentation.ts` + `sentry.server.config.ts` /
+      `sentry.edge.config.ts` / `sentry.client.config.ts`) — **sans compte Sentry réel** :
+      sans `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN`, le SDK s'initialise en no-op silencieux
+      (comportement documenté officiel), donc rien ne casse ni ne part vers un serveur tiers
+      tant que les clés ne sont pas renseignées.
+- [x] `app/error.tsx` et le nouveau `app/global-error.tsx` (boundary racine, capture les
+      erreurs que `error.tsx` ne peut pas intercepter) envoient désormais les erreurs à
+      Sentry via `Sentry.captureException` en plus de l'affichage utilisateur existant.
+- [x] `next.config.mjs` : `withSentryConfig` avec `tunnelRoute: '/monitoring'` — fait
+      transiter les événements par une route interne same-origin plutôt que par le domaine
+      d'ingestion Sentry, pour rester conforme à la CSP `connect-src 'self'` ajoutée en Phase
+      9 sans avoir à l'assouplir. Upload des source maps auto-désactivé sans
+      `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN` (pas d'échec de build).
+- [x] `.env.example` complété (`SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`,
+      `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`, tous facultatifs).
+- [x] **Testé** : `build`/`lint`/`typecheck`/tests unitaires rejoués avec succès après
+      intégration ; serveur de dev et **build de production démarrés tous les deux avec
+      succès**, aucune erreur console/page (Playwright éphémère) sur les pages clés — la CSP
+      de la Phase 9 reste intacte, le tunnel `/monitoring` ne nécessite aucune règle
+      supplémentaire. Taille du bundle client partagé constatée en hausse (~87 kB → ~166 kB,
+      middleware ~78 kB → ~147 kB) : coût normal du SDK Sentry, pas un bug.
+- [ ] **Non vérifiable dans cet environnement** : le comportement réel du tunnel
+      `/monitoring` (proxy vers l'API d'ingestion Sentry) ne peut être validé de bout en bout
+      sans un vrai DSN Sentry ; à confirmer dès qu'un compte est créé.
+- [ ] **Non fait, sur décision explicite** : internationalisation EN + multi-devises
+      (next-intl) et les options Algolia/Cloudinary — chantiers plus lourds, explicitement
+      post-lancement, laissés de côté pour cette session (voir échange avec l'utilisateur).
+
 ## À faire ensuite
 
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
-- [ ] Phase 10 (post-lancement, cf. plan d'exécution) : EN + multi-devises (next-intl),
-      Algolia en option, Cloudinary en option, Sentry (monitoring), fonctionnalités
-      post-lancement listées dans le plan fourni séparément.
+- [ ] Phase 10, reste : EN + multi-devises (next-intl, restructuration importante de toutes
+      les pages), Algolia en option, Cloudinary en option — à reprendre si/quand demandé.
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
       juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà
@@ -621,4 +650,4 @@ nofollow">` est bien présent sur une page admin même authentifiée (session ad
   ce domaine est explicitement souhaité.
 - Conformité étiquetage/sanitaire UE pour l'import/vente d'épices alimentaires (ouvert dès
   Phase 0, doit être résolu avant tout lancement commercial réel).
-- Comptes tiers (Stripe, Vercel, Supabase, domaine) à créer par l'humain.
+- Comptes tiers (Stripe, Vercel, Supabase, domaine, Sentry) à créer par l'humain.
