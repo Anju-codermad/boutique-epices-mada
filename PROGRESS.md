@@ -118,17 +118,43 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
 - [ ] **Non testable dans cet environnement** : l'envoi réel du magic link (nécessite un vrai
       `RESEND_API_KEY`) et donc la connexion "pour de vrai" par un humain.
 
+## Fait (Jour 11 — avis clients et newsletter)
+
+- [x] `app/api/products/[slug]/reviews/route.ts` : soumission d'avis (connexion requise, 401
+      sinon), statut `PENDING`, validation Zod (note 1-5, commentaire).
+- [x] `app/admin/avis/` : page de modération (protégée par rôle admin, défense en profondeur
+      en plus du middleware) + Server Actions `approveReview`/`rejectReview`.
+- [x] `lib/resend.ts` + `lib/emails.ts` : client Resend, `sendNewsletterConfirmationEmail`.
+      Le SDK Resend lève une erreur **à l'instanciation** si la clé est absente (casse le
+      build) — corrigé par une valeur de repli qui ne permet aucun envoi réel.
+- [x] `app/api/newsletter/subscribe/route.ts` : double opt-in RGPD, statut `PENDING` →
+      email de confirmation → `app/newsletter/confirmation/page.tsx` passe le statut à
+      `CONFIRMED`. `app/newsletter/desinscription/page.tsx` : désinscription (suppression)
+      avec confirmation explicite (Server Action, pas d'action sur simple GET).
+- [x] **Testé de bout en bout** contre le Postgres local (utilisateurs client + admin,
+      sessions JWT signées manuellement) : avis refusé sans connexion (401), soumis
+      connecté (201, PENDING), visible en modération admin, approuvé (vérifié en base :
+      passé à `APPROVED`), remonté par l'API produit avec la bonne note moyenne ; non-admin
+      redirigé hors de `/admin/avis` par le middleware. Newsletter : inscription crée bien le
+      `NewsletterSubscriber` en `PENDING` avec jeton (l'envoi Resend échoue, attendu, sans
+      clé réelle — géré sans casser le flux), confirmation passe à `CONFIRMED` et invalide le
+      jeton (réutilisation → "lien invalide"), désinscription supprime l'abonné. Données de
+      test nettoyées après vérification.
+- [ ] **Non testable dans cet environnement** : l'envoi réel de l'email de confirmation
+      (nécessite un vrai `RESEND_API_KEY`).
+
 ## À faire ensuite (Phase 4 → Phase 5)
 
 - [ ] Résoudre le blocage de push GitHub (voir ci-dessous), ouvrir la PR de cette session.
 - [ ] **Validation humaine requise** : relecture visuelle de `/design-system` (Phase 2),
       relecture du schéma Prisma + données de seed (Phase 3), test réel de connexion par
-      email une fois `RESEND_API_KEY` fourni (Phase 4).
+      email et de réception de l'email de confirmation newsletter une fois `RESEND_API_KEY`
+      fourni (Phase 4).
 - [ ] Créer les comptes Vercel / Supabase (humain).
 - [ ] Récupérer la chaîne de connexion Supabase, renseigner `.env`, puis rejouer
       `npx prisma migrate dev` contre la vraie base (bloqué tant que non fourni).
 - [ ] Créer un compte Resend, récupérer `RESEND_API_KEY`, vérifier le domaine d'envoi
-      (nécessaire pour que le magic link parte réellement — bloqué tant que non fourni).
+      (nécessaire pour que le magic link et les emails newsletter partent réellement).
 - [ ] Vérifier TVA/OSS auprès d'un comptable (humain).
 - [ ] Ouvrir la démarche de conformité étiquetage/sanitaire UE pour l'import d'épices (humain,
       délai long — ne bloque pas le dev mais bloque le lancement commercial).
@@ -136,8 +162,8 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
 - [ ] Jour 9 : upload Supabase Storage — **bloqué** sans compte Supabase réel (bucket +
       policies à créer par l'humain) ; le code peut être écrit (route protégée par le rôle
       admin, maintenant disponible via Auth.js) mais pas testé.
-- [ ] Jour 11 : avis clients (modération admin) et newsletter double opt-in (envoi Resend —
-      même limitation que le magic link : code écrit, envoi réel non testable ici).
+- [ ] Phase 5 (Jour 12+) : layout global (Header/Footer avec recherche et inscription
+      newsletter), pages essentielles du frontend.
 
 ## Points de blocage humains ouverts
 
