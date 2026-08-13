@@ -22,6 +22,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         className="border-b border-border bg-muted/40 py-3 text-sm"
       >
         <div className="container flex gap-6">
+          <Link href="/admin" className="hover:text-terracotta">
+            Tableau de bord
+          </Link>
           <Link href="/admin/produits" className="hover:text-terracotta">
             Produits
           </Link>
