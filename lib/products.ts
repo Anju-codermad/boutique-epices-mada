@@ -1,11 +1,14 @@
 import { CertificationType, Prisma } from '@prisma/client';
 
+import { prisma } from '@/lib/prisma';
+
 const productListSelect = {
   id: true,
   name: true,
   slug: true,
   certifications: true,
   isNew: true,
+  createdAt: true,
   category: { select: { name: true, slug: true } },
   variants: {
     select: { id: true, priceTtcCents: true, stock: true, weightGrams: true },
@@ -53,4 +56,99 @@ export { productListSelect };
 
 export function isValidCertification(value: string): value is CertificationType {
   return (Object.values(CertificationType) as string[]).includes(value);
+}
+
+export const SORT_OPTIONS = ['newest', 'name_asc', 'price_asc', 'price_desc'] as const;
+export type ProductSort = (typeof SORT_OPTIONS)[number];
+
+export interface QueryProductsParams {
+  page: number;
+  pageSize: number;
+  category?: string;
+  certification?: CertificationType;
+  minPrice?: number;
+  maxPrice?: number;
+  q?: string;
+  sort?: ProductSort;
+}
+
+/**
+ * Requête produits partagée entre app/api/products (fetch client) et
+ * app/boutique (rendu serveur) pour éviter de dupliquer la construction
+ * du `where` et la sérialisation.
+ *
+ * Le tri par prix (min variante) n'est pas exprimable par un simple
+ * `orderBy` Prisma sur une relation to-many : pour un catalogue de cette
+ * taille (dizaines de produits), on trie en mémoire plutôt que d'ajouter
+ * une colonne dénormalisée.
+ */
+export async function queryProducts({
+  page,
+  pageSize,
+  category,
+  certification,
+  minPrice,
+  maxPrice,
+  q,
+  sort = 'newest',
+}: QueryProductsParams) {
+  const where: Prisma.ProductWhereInput = {
+    ...(category ? { category: { slug: category } } : {}),
+    ...(certification ? { certifications: { has: certification } } : {}),
+    ...(q
+      ? {
+          OR: [
+            { name: { contains: q, mode: 'insensitive' } },
+            { description: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {}),
+    ...(minPrice !== undefined || maxPrice !== undefined
+      ? {
+          variants: {
+            some: {
+              ...(minPrice !== undefined ? { priceTtcCents: { gte: minPrice } } : {}),
+              ...(maxPrice !== undefined ? { priceTtcCents: { lte: maxPrice } } : {}),
+            },
+          },
+        }
+      : {}),
+  };
+
+  if (sort === 'price_asc' || sort === 'price_desc') {
+    const all = await prisma.product.findMany({ where, select: productListSelect });
+    const serialized = all.map(serializeProductListItem);
+    serialized.sort((a, b) => {
+      const priceA = a.minPriceTtcCents ?? 0;
+      const priceB = b.minPriceTtcCents ?? 0;
+      return sort === 'price_asc' ? priceA - priceB : priceB - priceA;
+    });
+
+    const total = serialized.length;
+    const start = (page - 1) * pageSize;
+
+    return {
+      products: serialized.slice(start, start + pageSize),
+      pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+    };
+  }
+
+  const orderBy: Prisma.ProductOrderByWithRelationInput =
+    sort === 'name_asc' ? { name: 'asc' } : { createdAt: 'desc' };
+
+  const [total, products] = await Promise.all([
+    prisma.product.count({ where }),
+    prisma.product.findMany({
+      where,
+      select: productListSelect,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  return {
+    products: products.map(serializeProductListItem),
+    pagination: { page, pageSize, total, totalPages: Math.max(1, Math.ceil(total / pageSize)) },
+  };
 }

@@ -205,6 +205,26 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
       contraste détecté et corrigé** : le sous-titre du hero était en `text-forest-light` sur
       fond `bg-forest`, quasiment illisible — corrigé en `text-white/85`.
 
+## Fait (Jour 14 — catalogue)
+
+- [x] `lib/products.ts` refactorisé : la construction du `where` Prisma et la sérialisation
+      sont désormais dans une fonction partagée `queryProducts()`, utilisée à la fois par
+      `app/api/products` (fetch client) et `app/boutique` (rendu serveur) — évite la
+      duplication introduite au Jour 7. Ajout du tri (`sort`: nouveautés/nom/prix
+      croissant/prix décroissant). Le tri par prix est calculé **en mémoire** (impossible
+      d'exprimer un `orderBy` Prisma sur le prix min d'une relation to-many sans colonne
+      dénormalisée) — choix documenté en commentaire, acceptable à l'échelle de ce catalogue.
+- [x] `app/boutique/page.tsx` : grille `ProductCard`, formulaire de filtres (catégorie,
+      certification, prix min/max) en GET pur (fonctionne sans JS), tri, pagination
+      (liens `?page=N` préservant les autres filtres), réinitialisation des filtres, compteur
+      de résultats pour une recherche texte.
+- [x] **Testé de bout en bout** (Playwright + Postgres local + seed) : affichage des 7
+      produits, filtre catégorie (Vanille isole bien Vanille Bourbon), tri prix décroissant
+      (Coffret Découverte en tête, cohérent avec son prix max), recherche texte + compteur,
+      **badge et bouton "Épuisé" vérifiés avec un produit remis temporairement à stock 0 sur
+      toutes ses variantes** (état non couvert par le jeu de seed), stock restauré après
+      test.
+
 ## Points de blocage humains ouverts
 
 - **Push GitHub bloqué** : l'app GitHub connectée à cette session n'a pas la permission
