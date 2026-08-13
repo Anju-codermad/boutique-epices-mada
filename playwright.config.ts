@@ -17,9 +17,14 @@ export default defineConfig({
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev',
+    // En CI : build de production + `next start`, pour éviter la compilation à la volée de
+    // `next dev` (chaque route se compile au premier accès) qui a rendu les tests flaky une
+    // fois le SDK Sentry ajouté (bundle client plus lourd → hydratation plus lente → clics/
+    // soumissions de formulaire interceptés par le HTML natif avant que React n'attache ses
+    // gestionnaires d'événements). En local, `next dev` reste plus rapide à itérer.
+    command: process.env.CI ? 'npm run build && npm run start' : 'npm run dev',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
   },
 });
