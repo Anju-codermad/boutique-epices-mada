@@ -72,7 +72,10 @@ export default async function ProductPage({ params }: { params: { slug: string }
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        // `<` échappé pour empêcher une donnée produit contenant "</script>" de sortir de la balise.
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(productJsonLd).replace(/</g, '\\u003c'),
+        }}
       />
       <main className="container py-12">
         <nav aria-label="Fil d'ariane" className="text-sm text-muted-foreground">

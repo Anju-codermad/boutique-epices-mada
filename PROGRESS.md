@@ -524,16 +524,56 @@ nofollow">` est bien présent sur une page admin même authentifiée (session ad
     ambigus entre le bouton panier du header et le bouton « Ajouter au panier », et entre le
     nom du produit dans le tiroir et son label de quantité — corrigés avec `exact: true`).
 
+## Fait (Phase 9, 2/3 — sécurité)
+
+- [x] **Faille XSS trouvée et corrigée** : le JSON-LD `Product` ajouté en Phase 8
+      (`app/produits/[slug]/page.tsx`) sérialisait `product.description` sans échappement
+      dans un `dangerouslySetInnerHTML`. Une description contenant littéralement `</script>`
+      aurait pu casser hors de la balise et injecter du JS arbitraire (XSS stocké, exploitable
+      par quiconque peut écrire une description produit). Corrigé en remplaçant tout
+      caractère `<` par sa séquence d'échappement Unicode dans le JSON sérialisé.
+- [x] **En-têtes de sécurité** (`next.config.mjs`, `headers()`, appliqués à toutes les
+      routes) : `Content-Security-Policy`, `X-Content-Type-Options: nosniff`,
+      `X-Frame-Options: DENY` (anti-clickjacking), `Referrer-Policy:
+    strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc désactivés,
+      non utilisés par le site), `Strict-Transport-Security`.
+  - **CSP** : `object-src none`, `frame-ancestors none`, `base-uri self`, `form-action self`
+    apportent une protection réelle immédiate. `script-src`/`style-src` gardent
+    `'unsafe-inline'` (pas de nonce) — un CSP strict à base de nonce demanderait d'étendre le
+    `matcher` du middleware à toutes les routes et de le valider contre un vrai déploiement
+    Vercel ; noté comme durcissement post-lancement plutôt que livré sans pouvoir le tester
+    en conditions réelles.
+  - **Testé** : `npm run build && npm run start` (mode production, pas `next dev` — le mode
+    dev échoue sous cette CSP à cause de `eval()` utilisé par le HMR de webpack, un faux
+    positif propre au dev qui ne se produit pas en production) + Playwright éphémère
+    vérifiant l'absence d'erreur console/page sur les pages clés et **le parcours complet
+    d'ajout au panier fonctionnant toujours sous la CSP** (aucune fonctionnalité cassée).
+- [x] **Revue ciblée** (grep + relecture) : aucun SQL brut (`$queryRaw`/`$executeRaw`,
+      tout passe par le query builder Prisma paramétré), aucun `console.log` (seul
+      `console.error` sur des objets d'erreur génériques, pas de token/donnée sensible),
+      jeton de confirmation newsletter généré via `randomUUID()` (imprévisible), CSRF sur les
+      Server Actions géré nativement par Next.js 14 (vérification de l'en-tête `Origin`), pas
+      de secret commité (`.env.example` ne contient que des placeholders vides).
+- [x] **Constaté, non corrigé — arbitrages documentés plutôt que actions unilatérales** :
+  - `npm audit` : 5 vulnérabilités de niveau élevé, toutes dans Next 14.2.35/postcss/glob ;
+    corrigées seulement par une montée vers Next 16, qui casserait le choix de stack
+    verrouillé dans `CLAUDE.md`.
+  - Pas de rate limiting sur `/api/contact`, `/api/newsletter/subscribe` ni `/connexion` : un
+    limiteur en mémoire serait trompeur (Vercel exécute des fonctions serverless sans état
+    partagé entre instances, donc inefficace en production) ; une vraie protection
+    nécessiterait Vercel Firewall ou un store partagé (Upstash Redis) — décision
+    d'infrastructure pour l'humain, pas quelque chose à simuler ici. Le formulaire de contact
+    a déjà un honeypot (Jour 17).
+  - `next start` (mode production) local échoue avec `UntrustedHost` d'Auth.js — Vercel
+    détecte et fait confiance à l'hôte automatiquement en production (comportement documenté
+    Auth.js v5), donc sans impact sur le déploiement cible ; non corrigé pour éviter
+    d'affaiblir la validation d'hôte (`trustHost: true`) sans besoin réel.
+
 ## À faire ensuite
 
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
-- [ ] Phase 9, 2/3 — sécurité : revue ciblée (en-têtes de sécurité, rate limiting, dépendances).
-      Les 5 vulnérabilités `npm audit` de niveau élevé identifiées viennent toutes de Next
-      14.2.35/postcss/glob — une montée vers Next 16 les corrigerait mais casserait le choix
-      de stack verrouillé dans `CLAUDE.md` ; documentée comme arbitrage plutôt que corrigée
-      unilatéralement.
 - [ ] Phase 9, 3/3 — déploiement (préparation Vercel : documentation, variables
       d'environnement requises ; la création du compte/projet reste un point de blocage
       humain).
