@@ -725,13 +725,44 @@ strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc d�
       authentifié confirmé redirigé (307). `typecheck`/`lint`/`test` (35/35)/`build` rejoués
       sans régression.
 
+## Fait (gestion admin des catégories)
+
+- [x] **Gap identifié, confirmé avec l'utilisateur** : les 7 catégories n'étaient modifiables
+      que via `prisma/seed.ts` (interdit en production). Question posée explicitement sur la
+      suite de la feuille de route (tout jusqu'au bout vs. petits restes seulement) —
+      l'utilisateur a choisi de laisser l'i18n EN/multi-devises et Algolia/Cloudinary de côté
+      (post-lancement, comme prévu dans `CLAUDE.md`) et de ne faire que ce dernier morceau de
+      développement pur.
+- [x] `lib/slugify.ts` : `uniqueSlug(base, isTaken)` extrait de
+      `app/admin/produits/actions.ts` (désormais généralisé, plus seulement pour les
+      produits) — même motif d'extraction que `lib/admin.ts`/`lib/money.ts` plus tôt dans la
+      session.
+- [x] `app/admin/categories/` (nouveau) : liste (nombre de produits par catégorie),
+      création (slug généré automatiquement, unique), modification (nom/description — le
+      slug reste volontairement fixe après création pour ne pas casser les liens/SEO),
+      suppression protégée si des produits y sont encore rattachés (garde `P2003`, même motif
+      que produits/variantes/coupons). Lien « Catégories » ajouté à la nav admin.
+- [x] **Testé de bout en bout** (Postgres local, session JWT admin, Playwright éphémère) :
+      création (slug correct, accents retirés), renommage (slug stable), collision de slug
+      (suffixe `-2` ajouté automatiquement), suppression d'une catégorie vide (réussit),
+      tentative de suppression d'une catégorie avec produits (Cannelle, 5 produits) — **le
+      log serveur confirme que la garde `P2003` lève bien le message attendu et qu'aucune
+      mutation n'a lieu** (catégorie toujours présente en base après coup), comportement
+      identique à celui déjà établi pour produits/variantes/coupons. `typecheck`/`lint`/
+      `test` (35/35)/`build` rejoués sans régression. Les 7 catégories du seed vérifiées
+      intactes après nettoyage des données de test.
+
 ## À faire ensuite
 
 - [ ] Upload Supabase Storage : code écrit et exercé, mais le succès réel du transfert
       reste **bloqué** sans compte Supabase réel (bucket `product-images` + policies à
       créer par l'humain, voir README).
 - [ ] Phase 10, reste : EN + multi-devises (next-intl, restructuration importante de toutes
-      les pages), Algolia en option, Cloudinary en option — à reprendre si/quand demandé.
+      les pages), Algolia en option, Cloudinary en option — **volontairement laissés de côté**
+      (décision explicite de l'utilisateur, post-lancement comme prévu dans `CLAUDE.md`). Ceci
+      clôt la partie développement pur de la feuille de route pour cette session : tout ce qui
+      reste nécessite soit des comptes tiers réels, soit une validation humaine (voir
+      ci-dessous).
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
       juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà

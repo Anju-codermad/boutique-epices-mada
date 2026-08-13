@@ -7,7 +7,7 @@ import { Prisma } from '@prisma/client';
 
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/admin';
-import { slugify } from '@/lib/slugify';
+import { uniqueSlug } from '@/lib/slugify';
 import { eurosToCentsSchema } from '@/lib/money';
 import { uploadProductImage, deleteProductImage } from '@/lib/supabase-storage';
 
@@ -47,18 +47,6 @@ function parseVariantForm(formData: FormData) {
   });
 }
 
-/** Slug unique : ajoute un suffixe numérique si le slug de base est déjà pris. */
-async function uniqueSlug(base: string): Promise<string> {
-  const slug = slugify(base);
-  let candidate = slug;
-  let suffix = 2;
-  while (await prisma.product.findUnique({ where: { slug: candidate }, select: { id: true } })) {
-    candidate = `${slug}-${suffix}`;
-    suffix += 1;
-  }
-  return candidate;
-}
-
 export async function createProduct(formData: FormData) {
   await requireAdmin();
 
@@ -69,7 +57,12 @@ export async function createProduct(formData: FormData) {
     throw new Error('Formulaire invalide');
   }
 
-  const slug = await uniqueSlug(parsed.data.name);
+  const slug = await uniqueSlug(
+    parsed.data.name,
+    async (candidate) =>
+      (await prisma.product.findUnique({ where: { slug: candidate }, select: { id: true } })) !==
+      null
+  );
 
   const product = await prisma.product.create({
     data: {
