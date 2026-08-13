@@ -5,9 +5,11 @@ détail de chaque phase/jour.
 
 ## État actuel
 
-Phase 1 (stack technique & fondations) terminée. `build`, `lint`, `typecheck` et `format:check`
-passent tous. Le push vers GitHub est actuellement bloqué (voir "Points de blocage" ci-dessous) ;
-le travail est commité localement en attendant.
+Phase 2 (design system de base) terminée. `build`, `lint`, `typecheck` et `format:check`
+passent tous. Vérifié visuellement en local (`/design-system`) via un serveur de dev +
+capture d'écran Playwright ponctuelle (Playwright retiré ensuite, pas encore dans le
+périmètre du projet). Le push vers GitHub est actuellement bloqué (voir "Points de blocage"
+ci-dessous) ; le travail est commité localement en attendant.
 
 ## Fait
 
@@ -33,17 +35,32 @@ le travail est commité localement en attendant.
 - [x] CI GitHub Actions (`.github/workflows/ci.yml`) : lint, typecheck, build sur chaque PR.
 - [x] `README.md` réécrit pour le projet.
 
-## À faire ensuite (Phase 1 → Phase 2)
+## Fait (Phase 2)
+
+- [x] `components/ui/Badge.tsx` (variantes bio / équitable / nouveau / épuisé — épuisé grisé,
+      non cliquable, `<span>` pas `<button>`).
+- [x] `components/ui/Button.tsx` (variantes primary/secondary/outline/ghost, tailles sm/md/lg).
+- [x] `components/ui/Card.tsx` (Card, CardHeader, CardTitle, CardDescription, CardContent,
+      CardFooter).
+- [x] `app/design-system/page.tsx` : page de validation visuelle de la palette, typographie,
+      badges, boutons, exemple de carte produit.
+
+## À faire ensuite (Phase 2 → Phase 3)
 
 - [ ] Résoudre le blocage de push GitHub (voir ci-dessous), ouvrir la PR de cette session.
+- [ ] **Validation humaine requise** : relecture visuelle de `/design-system` (déclenche la
+      case "Phase 2" de la check-list de validation par phase).
 - [ ] Créer les comptes Vercel / Supabase (humain).
 - [ ] Récupérer la chaîne de connexion Supabase et renseigner `.env` (humain).
 - [ ] Vérifier TVA/OSS auprès d'un comptable (humain).
 - [ ] Ouvrir la démarche de conformité étiquetage/sanitaire UE pour l'import d'épices (humain,
       délai long — ne bloque pas le dev mais bloque le lancement commercial).
 - [ ] Choisir le nom de domaine (humain).
-- [ ] Phase 2 : `components/ui/Badge.tsx`, `Button.tsx`, `Card.tsx` (écrits à la main, style
-      shadcn) + page `/design-system`.
+- [ ] Phase 3 (Jour 5) : schéma Prisma complet (Product, Variant, Category, ProductImage,
+      Order, OrderItem, Review, Address, Coupon, NewsletterSubscriber, modèles Auth.js) —
+      nécessite une vraie base Supabase pour lancer `prisma migrate dev` (bloqué tant que les
+      identifiants Supabase ne sont pas fournis ; le schéma peut être écrit et validé avec
+      `prisma validate`/`generate` sans connexion réelle).
 
 ## Points de blocage humains ouverts
 
