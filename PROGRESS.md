@@ -8,14 +8,17 @@ détail de chaque phase/jour.
 **Phases 0 à 9 terminées** : catalogue, panier, comptes, checkout Stripe (webhook,
 remboursements), emails transactionnels, SEO/accessibilité/RGPD/analytics, tests automatisés
 (Vitest + Playwright, intégrés à la CI), sécurité (en-têtes, CSP, revue ciblée), préparation
-au déploiement (README). Tout testé de bout en bout contre un Postgres 16 local (installé
-dans l'environnement d'exécution, pas Supabase) faute d'identifiants réels. `build`, `lint`,
-`typecheck`, `test` et `format:check` passent tous à chaque étape et sont vérifiés par la CI
-GitHub Actions à chaque PR. Le dépôt GitHub est à jour (push et PR fonctionnels depuis la
-correction du blocage de permission de l'app GitHub — voir "Points de blocage" pour
-l'historique). Reste : Jour 9 (upload Supabase Storage, bloqué sans compte réel), Phase 10
-(post-lancement), et l'ensemble des validations humaines listées ci-dessous (comptes tiers,
-relectures juridiques) — voir le détail jour par jour plus bas.
+au déploiement (README). **Jour 9 (upload Supabase Storage) rattrapé** et **gestion admin des
+produits** (CRUD complet, absent jusqu'ici malgré la mention dans la description de la
+première PR) ajoutés dans cette session. Tout testé de bout en bout contre un Postgres 16
+local (installé dans l'environnement d'exécution, pas Supabase) faute d'identifiants réels.
+`build`, `lint`, `typecheck`, `test` et `format:check` passent tous à chaque étape et sont
+vérifiés par la CI GitHub Actions à chaque PR. Le dépôt GitHub est à jour (push et PR
+fonctionnels depuis la correction du blocage de permission de l'app GitHub — voir "Points de
+blocage" pour l'historique). Reste : upload Supabase Storage non testable en conditions
+réelles (bucket/credentials réels requis), Phase 10 (post-lancement, hors monitoring Sentry),
+et l'ensemble des validations humaines listées ci-dessous (comptes tiers, relectures
+juridiques) — voir le détail jour par jour plus bas.
 
 ## Fait
 
@@ -622,11 +625,66 @@ strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc d�
       (next-intl) et les options Algolia/Cloudinary — chantiers plus lourds, explicitement
       post-lancement, laissés de côté pour cette session (voir échange avec l'utilisateur).
 
+## Fait (Jour 9 rattrapé + gestion admin des produits)
+
+- [x] `lib/slugify.ts` : génération de slug (normalisation Unicode NFD pour retirer les
+      accents, minuscules, tirets).
+- [x] `lib/admin.ts` : `requireAdmin()` mutualisé — était dupliqué à l'identique dans
+      `app/admin/avis/actions.ts` et `app/admin/commandes/actions.ts` ; les deux fichiers
+      importent désormais depuis ce module unique.
+- [x] `lib/supabase-storage.ts` : client Supabase Storage **côté serveur uniquement**
+      (`SUPABASE_SERVICE_ROLE_KEY`, jamais exposée au client), même précaution que
+      Stripe/Resend — valeur de repli sans compte réel pour ne pas casser le build.
+      `uploadProductImage`/`deleteProductImage`, bucket `product-images`.
+- [x] `prisma/schema.prisma` : `ProductImage.path` ajouté (nécessaire pour supprimer l'objet
+      Storage correspondant à la suppression d'une image) — migration
+      `20260813131524_product_image_path`.
+- [x] `app/admin/produits/` (nouveau, comblant un vrai manque — seuls `admin/avis` et
+      `admin/commandes` existaient) : liste des produits, création (produit + première
+      variante obligatoire dans un seul formulaire), édition (infos produit, variantes
+      — ajout/modification/suppression —, images — envoi/suppression —, suppression du
+      produit). Toutes les Server Actions dans `app/admin/produits/actions.ts` :
+      validation Zod systématique (prix saisis en euros côté formulaire, convertis et
+      stockés en centimes côté serveur, jamais acceptés tels quels), slug unique généré et
+      vérifié en base, protection `P2003` (suppression impossible si commandes associées →
+      message explicite plutôt qu'une erreur Prisma brute), `requireAdmin()` sur chaque
+      action.
+- [x] `.env.example` / `README.md` : variables `NEXT_PUBLIC_SUPABASE_URL` /
+      `SUPABASE_SERVICE_ROLE_KEY` documentées, section bucket Storage précisée (nom exact
+      `product-images`).
+- [x] **Détour de debug important, pour mémoire** : une longue investigation a d'abord fait
+      croire à une régression du framework (une Server Action `createProduct` semblait
+      systématiquement redirigée vers `/` sans jamais s'exécuter, sous `/admin/*`
+      uniquement). Après isolation méthodique (pages de test minimales, inspection du
+      `server-reference-manifest.js` compilé), la cause réelle s'est révélée être un
+      script de test Playwright utilisant un sélecteur ambigu
+      (`page.click('button[type="submit"]')`), qui cliquait en réalité sur le bouton
+      « Déconnexion » du `Header` (présent sur chaque page, avant le formulaire ciblé dans
+      l'ordre du DOM) au lieu du bouton du formulaire testé — un bug de test, pas
+      d'application. Toutes les « corrections » explorées entre-temps (retrait de `auth()`
+      dans le layout admin, contournements client-side du `redirect()`) ont été annulées ;
+      le code final utilise le pattern standard déjà en place ailleurs dans le projet
+      (`<form action={serverAction}>` + `redirect()` côté serveur).
+- [x] **Testé de bout en bout** (Postgres local, session JWT admin signée manuellement,
+      Playwright éphémère) : liste, création d'un produit (avec sa première variante),
+      ajout d'une variante, modification du produit, suppression d'une variante,
+      suppression du produit (retour à la liste) — flux complet confirmé fonctionnel de
+      bout en bout dans un seul scénario. `typecheck`/`lint`/`test` (30 tests) rejoués sans
+      régression, `build` de production généré avec succès (routes `/admin/produits*`
+      présentes), suite E2E (6 tests) rejouée en mode `CI=true` (build + `next start`,
+      identique à la CI GitHub Actions) : 6/6 passent — les échecs observés en mode
+      `next dev` local sont le flake d'hydratation déjà documenté en Phase 9 (non lié à ce
+      changement, confirmé non reproductible sous le mode utilisé réellement par la CI).
+- [ ] **Non testable dans cet environnement** : l'envoi réel vers Supabase Storage
+      (nécessite un bucket `product-images` et des identifiants réels) — le formulaire
+      d'envoi d'image a été exercé (requête traitée sans crash côté serveur), mais le
+      succès effectif du transfert ne peut être confirmé sans compte réel.
+
 ## À faire ensuite
 
-- [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
-      (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
-      le rôle admin, disponible depuis le Jour 10) mais pas testé.
+- [ ] Upload Supabase Storage : code écrit et exercé, mais le succès réel du transfert
+      reste **bloqué** sans compte Supabase réel (bucket `product-images` + policies à
+      créer par l'humain, voir README).
 - [ ] Phase 10, reste : EN + multi-devises (next-intl, restructuration importante de toutes
       les pages), Algolia en option, Cloudinary en option — à reprendre si/quand demandé.
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5

@@ -4,10 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import type { OrderStatus } from '@prisma/client';
 
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { stripe } from '@/lib/stripe';
 import { sendShippingNotificationEmail, sendRefundConfirmationEmail } from '@/lib/emails';
+import { requireAdmin } from '@/lib/admin';
 
 const ORDER_STATUSES = [
   'PENDING',
@@ -25,13 +25,6 @@ const updateOrderSchema = z.object({
   trackingNumber: z.string().trim().max(100).optional(),
   carrier: z.string().trim().max(100).optional(),
 });
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== 'ADMIN') {
-    throw new Error('Accès refusé');
-  }
-}
 
 export async function updateOrder(orderId: string, formData: FormData) {
   await requireAdmin();

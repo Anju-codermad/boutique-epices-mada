@@ -70,6 +70,8 @@ Toutes les variables listées dans `.env.example` doivent être renseignées en 
 | `CONTACT_EMAIL`                 | Adresse recevant les messages du formulaire de contact                                          |
 | `STRIPE_SECRET_KEY`             | Compte Stripe (clé **live** en production, clé test en preview)                                 |
 | `STRIPE_WEBHOOK_SECRET`         | Voir étape 3 ci-dessous                                                                         |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase → Project Settings → API                                                               |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase → Project Settings → API (clé `service_role`, secrète)                                 |
 
 ### 3. Webhook Stripe
 
@@ -79,8 +81,9 @@ Copier le secret de signature généré (`whsec_...`) dans `STRIPE_WEBHOOK_SECRE
 
 ### 4. Storage Supabase (images produits)
 
-Créer un bucket public dans Supabase Storage pour les images produits ; le domaine
-`*.supabase.co` est déjà autorisé dans `next.config.mjs` (`images.remotePatterns`).
+Dans Supabase Storage, créer un bucket **public** nommé exactement `product-images` (utilisé
+par `/admin/produits` pour l'upload d'images). Le domaine `*.supabase.co` est déjà autorisé
+dans `next.config.mjs` (`images.remotePatterns`).
 
 ### 5. Après le premier déploiement
 
