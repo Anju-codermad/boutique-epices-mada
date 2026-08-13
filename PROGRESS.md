@@ -752,6 +752,54 @@ strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc d�
       `test` (35/35)/`build` rejoués sans régression. Les 7 catégories du seed vérifiées
       intactes après nettoyage des données de test.
 
+## Fait (écarts réels trouvés par comparaison au plan d'exécution original)
+
+L'utilisateur a fourni le document de plan original (jamais commité au dépôt, seulement
+suivi via `PROGRESS.md` jusqu'ici). Une comparaison ligne à ligne (`grep` sur le code réel,
+pas seulement relecture de `PROGRESS.md`) a révélé 4 tâches du plan jamais faites, sans raison
+valable — corrigées dans la foulée :
+
+- [x] **Jour 1 — fiche de cadrage produit** : n'existait pas. `docs/cadrage-produit.md`
+      (nouveau) : les 7 familles de produits, positionnement, marché cible, devise, et un
+      rappel du mécanisme TVA/OSS pour la vente à distance UE (avec avertissement explicite :
+      à faire vérifier par un comptable, ce n'est pas un conseil fiscal).
+- [x] **Jour 23 — JSON-LD `Organization` et `BreadcrumbList`** : seul `Product` avait été
+      fait. `Organization` ajouté site-wide dans `app/layout.tsx`. `BreadcrumbList` ajouté sur
+      la fiche produit (`app/produits/[slug]/page.tsx`), en cohérence avec le fil d'Ariane
+      **visible** (un maillon « Accueil » a été ajouté au fil d'Ariane visible en même temps,
+      pour que les données structurées reflètent exactement ce que l'utilisateur voit —
+      recommandation Google).
+- [x] **Checklist Phase 8 — Lighthouse ≥ 90** : jamais mesuré jusqu'ici (seul un audit
+      d'accessibilité axe-core avait été fait). Lighthouse exécuté réellement (installation
+      éphémère, `npm uninstall` ensuite, contre un `next build && next start` réel) sur 4
+      pages clés :
+  - Accueil : performance 90, accessibilité 96, bonnes pratiques 96, SEO 100.
+  - Boutique, fiche produit, panier : performance 98, accessibilité 96, bonnes pratiques 96,
+    SEO 100 — **sauf panier, SEO 63**, dont la seule cause est l'audit `is-crawlable`
+    (bloqué de l'indexation) : **attendu et voulu**, `/panier` est volontairement `noindex`
+    depuis la Phase 8 (page privée, sans intérêt SEO). Pas un défaut réel.
+  - Bilan honnête : toutes les pages testées passent bien la barre des 90 sur les critères qui
+    s'appliquent réellement à des pages publiques ; le seul score sous 90 s'explique
+    entièrement par une décision produit assumée, pas par un manque de qualité.
+- [x] **Jour 28 — `.env.production.example`** : n'existait pas comme fichier séparé de
+      `.env.example` (le contenu équivalent était dilué dans le tableau du README). Créé,
+      avec les différences propres à la production explicitement notées en tête de fichier
+      (clés Stripe live, domaine réel, domaine Resend vérifié).
+
+**Écarts documentés mais non corrigés dans cette passe** (décisions déjà prises et justifiées
+sur le fond, mais qui restent des divergences par rapport au texte du plan — à trancher
+explicitement avec l'utilisateur avant de les considérer clos) :
+- Bannière de consentement cookies RGPD (Jour 25) — non construite, `@vercel/analytics` étant
+  sans cookie (donc rien à consentir), voir section Phase 8 plus haut.
+- Rate limiting Upstash sur `/api/checkout` et `/api/contact` (Jour 27) — non fait, nécessite
+  un compte Upstash réel, voir section Phase 9 (2/3) plus haut.
+- Routes API dédiées `app/api/upload/route.ts` (Jour 9) et `app/api/orders/[id]/return/route.ts`
+  (Jour 22) — implémentées comme Server Actions (`uploadImage` dans
+  `app/admin/produits/actions.ts`, `requestReturn` dans `app/compte/commandes/actions.ts`)
+  plutôt que comme routes REST dédiées. Fonctionnellement équivalent et cohérent avec le
+  reste des mutations admin/compte du projet (toutes en Server Actions), mais diverge de la
+  structure exacte demandée par le plan.
+
 ## À faire ensuite
 
 - [ ] Upload Supabase Storage : code écrit et exercé, mais le succès réel du transfert

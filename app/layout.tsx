@@ -40,6 +40,14 @@ export const metadata: Metadata = {
   },
 };
 
+const organizationJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: SITE_NAME,
+  description: SITE_DESCRIPTION,
+  url: getAppUrl(),
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -53,6 +61,14 @@ export default async function RootLayout({
   return (
     <html lang="fr">
       <body className={`${playfairDisplay.variable} ${inter.variable} antialiased`}>
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          // `<` échappé pour empêcher toute donnée contenant "</script>" de sortir de la balise.
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd).replace(/</g, '\\u003c'),
+          }}
+        />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-forest focus:px-4 focus:py-2 focus:text-white"

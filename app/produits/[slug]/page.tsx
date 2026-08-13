@@ -67,6 +67,26 @@ export default async function ProductPage({ params }: { params: { slug: string }
     },
   };
 
+  const breadcrumbItems = [
+    { name: 'Accueil', url: getAppUrl() },
+    { name: 'Boutique', url: new URL('/boutique', getAppUrl()).toString() },
+    {
+      name: product.category.name,
+      url: new URL(`/boutique?category=${product.category.slug}`, getAppUrl()).toString(),
+    },
+    { name: product.name, url: new URL(`/produits/${product.slug}`, getAppUrl()).toString() },
+  ];
+  const breadcrumbJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbItems.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+
   return (
     <>
       <script
@@ -77,8 +97,19 @@ export default async function ProductPage({ params }: { params: { slug: string }
           __html: JSON.stringify(productJsonLd).replace(/</g, '\\u003c'),
         }}
       />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(breadcrumbJsonLd).replace(/</g, '\\u003c'),
+        }}
+      />
       <main className="container py-12">
         <nav aria-label="Fil d'ariane" className="text-sm text-muted-foreground">
+          <Link href="/" className="hover:text-terracotta">
+            Accueil
+          </Link>{' '}
+          /{' '}
           <Link href="/boutique" className="hover:text-terracotta">
             Boutique
           </Link>{' '}
