@@ -6,7 +6,8 @@ import type { OrderStatus } from '@prisma/client';
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { sendShippingNotificationEmail } from '@/lib/emails';
+import { stripe } from '@/lib/stripe';
+import { sendShippingNotificationEmail, sendRefundConfirmationEmail } from '@/lib/emails';
 
 const ORDER_STATUSES = [
   'PENDING',
@@ -47,19 +48,66 @@ export async function updateOrder(orderId: string, formData: FormData) {
 
   const existing = await prisma.order.findUniqueOrThrow({
     where: { id: orderId },
-    include: { user: { select: { email: true } } },
+    include: { user: { select: { email: true } }, items: true },
   });
 
   const { status, trackingNumber, carrier } = parsed.data;
+  const recipientEmail = existing.user?.email ?? existing.guestEmail;
+
+  if (status === 'REFUNDED') {
+    // Le remboursement engage de l'argent réel : jamais un simple changement de statut,
+    // toujours un vrai appel Stripe (jamais fait deux fois grâce au garde ci-dessous).
+    if (existing.status !== 'REFUNDED') {
+      if (!existing.stripePaymentIntentId) {
+        throw new Error(
+          'Impossible de rembourser : aucun paiement Stripe associé à cette commande.'
+        );
+      }
+
+      await stripe.refunds.create({
+        payment_intent: existing.stripePaymentIntentId,
+        amount: existing.totalTtcCents,
+      });
+
+      await prisma.$transaction([
+        ...existing.items.map((item) =>
+          prisma.variant.update({
+            where: { id: item.variantId },
+            data: { stock: { increment: item.quantity } },
+          })
+        ),
+        prisma.order.update({
+          where: { id: orderId },
+          data: { status: 'REFUNDED', trackingNumber, carrier },
+        }),
+      ]);
+
+      if (recipientEmail) {
+        await sendRefundConfirmationEmail(recipientEmail, {
+          orderId: existing.id,
+          refundedAmountCents: existing.totalTtcCents,
+        }).catch((error) => {
+          console.error("Échec de l'envoi de l'email de remboursement", error);
+        });
+      }
+    }
+
+    revalidatePath('/admin/commandes');
+    return;
+  }
 
   const updated = await prisma.order.update({
     where: { id: orderId },
-    data: { status, trackingNumber, carrier },
-    include: { user: { select: { email: true } } },
+    data: {
+      status,
+      trackingNumber,
+      carrier,
+      deliveredAt:
+        status === 'DELIVERED' && existing.status !== 'DELIVERED' ? new Date() : undefined,
+    },
   });
 
   const justShipped = status === 'SHIPPED' && existing.status !== 'SHIPPED';
-  const recipientEmail = updated.user?.email ?? updated.guestEmail;
 
   if (justShipped && trackingNumber && carrier && recipientEmail) {
     await sendShippingNotificationEmail(recipientEmail, {

@@ -1,7 +1,10 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { orderStatusLabels } from '@/lib/orders';
+import { orderStatusLabels, isReturnEligible, returnDeadline } from '@/lib/orders';
 import { formatPriceTtc } from '@/lib/format';
+import { Button } from '@/components/ui/Button';
+
+import { requestReturn } from './actions';
 
 export default async function CommandesPage() {
   const session = await auth();
@@ -47,6 +50,36 @@ export default async function CommandesPage() {
                 {order.trackingNumber}
                 {order.carrier ? ` (${order.carrier})` : ''}
               </span>
+            </p>
+          ) : null}
+
+          {order.status === 'DELIVERED' && isReturnEligible(order) ? (
+            <form action={requestReturn.bind(null, order.id)} className="mt-3">
+              <p className="text-sm text-muted-foreground">
+                Retour possible jusqu&apos;au {returnDeadline(order)?.toLocaleDateString('fr-FR')}{' '}
+                (droit de rétractation de 14 jours).
+              </p>
+              <Button type="submit" variant="outline" size="sm" className="mt-2">
+                Demander un retour
+              </Button>
+            </form>
+          ) : null}
+
+          {order.status === 'DELIVERED' && !isReturnEligible(order) ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Délai de rétractation de 14 jours dépassé.
+            </p>
+          ) : null}
+
+          {order.status === 'RETURN_REQUESTED' ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Retour demandé, en attente de traitement par notre équipe.
+            </p>
+          ) : null}
+
+          {order.status === 'RETURNED' ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              Retour reçu, remboursement en cours.
             </p>
           ) : null}
         </li>

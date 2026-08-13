@@ -398,13 +398,49 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
       (4242.../4000...0002) nécessite un vrai compte Stripe (clés de test,
       `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`) pour déclencher un vrai `checkout.session.completed`.
 
+## Fait (Phase 7 — droit de rétractation, remboursements)
+
+- [x] `prisma/schema.prisma` : ajout de `Order.stripePaymentIntentId` (nécessaire pour émettre
+      un vrai remboursement Stripe) et `Order.deliveredAt` (point de départ du délai légal de
+      rétractation de 14 jours, vente à distance UE). Migration
+      `20260813114052_order_refund_tracking`.
+- [x] `app/api/webhooks/stripe/route.ts` : capture `session.payment_intent` à la confirmation
+      du paiement et le stocke sur la commande.
+- [x] `lib/orders.ts` : `returnDeadline()`/`isReturnEligible()`, calcul serveur de
+      l'éligibilité au retour (jamais fait confiance à un statut envoyé par le client).
+      `RETURN_WINDOW_DAYS = 14` centralisé dans `lib/stripe.ts`.
+- [x] `app/compte/commandes/` : bouton « Demander un retour » (Server Action `requestReturn`)
+      visible uniquement si la commande est `DELIVERED` et dans les 14 jours suivant
+      `deliveredAt` — revérifié côté serveur à chaque appel, pas seulement à l'affichage.
+      Passage à `RETURN_REQUESTED`. Messages d'état pour chaque statut (délai dépassé, retour
+      demandé, retour reçu).
+- [x] `app/admin/commandes/actions.ts` : passage à `DELIVERED` horodate automatiquement
+      `deliveredAt`. Passage à `REFUNDED` déclenche un **vrai remboursement Stripe**
+      (`stripe.refunds.create`, jamais un simple changement de statut) puis, seulement si
+      l'appel réussit, restocke les variantes retournées et met à jour la commande dans une
+      transaction ; garde d'idempotence (`existing.status !== 'REFUNDED'`) pour ne jamais
+      rembourser/restocker deux fois. Email de remboursement envoyé en best-effort (comme les
+      autres emails transactionnels).
+- [x] **Testé de bout en bout** (Postgres local, sessions JWT signées manuellement pour un
+      compte client et un compte admin, Playwright éphémère) : affichage correct des 3 états
+      (éligible avec échéance affichée, délai dépassé, retour déjà demandé) ; clic réel sur
+      « Demander un retour » vérifié en base (transition `DELIVERED` → `RETURN_REQUESTED`) ;
+      tentative de remboursement admin avec un faux `payment_intent` confirmée en échec
+      propre (l'appel Stripe échoue, l'erreur remonte via `error.tsx`, **aucune mutation en
+      base n'a lieu** — statut et stock inchangés, vérifié directement en base) ; logique de
+      transaction (restock + passage à `REFUNDED`) rejouée isolément avec succès ; ré-soumission
+      d'un remboursement déjà effectué confirmée sans nouvel appel Stripe ni double restock
+      (idempotence). Données de test nettoyées après vérification.
+- [ ] **Non testable dans cet environnement** : le vrai appel `stripe.refunds.create` échoue
+      systématiquement ici faute de clé Stripe réelle (erreur réseau/format de réponse) — la
+      logique métier autour de l'appel est entièrement vérifiée, mais l'appel lui-même
+      nécessitera un vrai compte Stripe (clés de test) pour être validé en conditions réelles.
+
 ## À faire ensuite
 
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
-- [ ] Phase 7 : droit de rétractation / remboursements (email `RefundConfirmationEmail.tsx`
-      déjà prêt depuis le Jour 20, reste à écrire le flux admin de traitement d'un retour).
 - [ ] Phase 8 : SEO/perf/a11y/RGPD/analytics.
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture

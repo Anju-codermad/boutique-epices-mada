@@ -239,7 +239,12 @@ model Order {
   trackingNumber String?
   carrier        String?
 
-  stripeSessionId String? @unique
+  stripeSessionId       String? @unique
+  stripePaymentIntentId String?
+
+  // Renseignée quand l'admin passe la commande à DELIVERED ; sert de point de départ
+  // au délai légal de rétractation de 14 jours (vente à distance UE).
+  deliveredAt DateTime?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)

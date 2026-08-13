@@ -6,5 +6,9 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_place
 
 export const SHIPPING_COST_CENTS = 590;
 export const FREE_SHIPPING_THRESHOLD_CENTS = 4900;
+
+// Droit de rétractation de 14 jours (vente à distance UE), décompté à partir de la
+// réception du colis.
+export const RETURN_WINDOW_DAYS = 14;
 export const ALLOWED_SHIPPING_COUNTRIES: Stripe.Checkout.SessionCreateParams.ShippingAddressCollection['allowed_countries'] =
   ['FR', 'BE', 'DE', 'ES', 'IT', 'LU', 'NL', 'PT', 'AT', 'IE'];
