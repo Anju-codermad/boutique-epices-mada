@@ -5,15 +5,17 @@ détail de chaque phase/jour.
 
 ## État actuel
 
-**Phase 5 terminée (Jour 17)** : accueil, catalogue, fiche produit, panier, connexion,
-compte client, avis, newsletter, contact, FAQ, pages d'erreur — tout testé de bout en bout
-contre un Postgres 16 local (installé dans l'environnement d'exécution, pas Supabase) avec
-Playwright. La migration réelle (`prisma migrate dev --name init`) est committée dans
-`prisma/migrations/` ; il faudra la réappliquer (ou la revalider) contre la vraie base
-Supabase une fois les identifiants disponibles. `build`, `lint`, `typecheck` et
-`format:check` passent tous à chaque étape. Le push vers GitHub est actuellement bloqué
-(voir "Points de blocage" ci-dessous) ; 17 jours de plan sont commités localement en
-attendant — voir le détail jour par jour ci-dessous.
+**Phases 0 à 9 terminées** : catalogue, panier, comptes, checkout Stripe (webhook,
+remboursements), emails transactionnels, SEO/accessibilité/RGPD/analytics, tests automatisés
+(Vitest + Playwright, intégrés à la CI), sécurité (en-têtes, CSP, revue ciblée), préparation
+au déploiement (README). Tout testé de bout en bout contre un Postgres 16 local (installé
+dans l'environnement d'exécution, pas Supabase) faute d'identifiants réels. `build`, `lint`,
+`typecheck`, `test` et `format:check` passent tous à chaque étape et sont vérifiés par la CI
+GitHub Actions à chaque PR. Le dépôt GitHub est à jour (push et PR fonctionnels depuis la
+correction du blocage de permission de l'app GitHub — voir "Points de blocage" pour
+l'historique). Reste : Jour 9 (upload Supabase Storage, bloqué sans compte réel), Phase 10
+(post-lancement), et l'ensemble des validations humaines listées ci-dessous (comptes tiers,
+relectures juridiques) — voir le détail jour par jour plus bas.
 
 ## Fait
 
@@ -535,7 +537,7 @@ nofollow">` est bien présent sur une page admin même authentifiée (session ad
 - [x] **En-têtes de sécurité** (`next.config.mjs`, `headers()`, appliqués à toutes les
       routes) : `Content-Security-Policy`, `X-Content-Type-Options: nosniff`,
       `X-Frame-Options: DENY` (anti-clickjacking), `Referrer-Policy:
-    strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc désactivés,
+  strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc désactivés,
       non utilisés par le site), `Strict-Transport-Security`.
   - **CSP** : `object-src none`, `frame-ancestors none`, `base-uri self`, `form-action self`
     apportent une protection réelle immédiate. `script-src`/`style-src` gardent
@@ -569,14 +571,35 @@ nofollow">` est bien présent sur une page admin même authentifiée (session ad
     Auth.js v5), donc sans impact sur le déploiement cible ; non corrigé pour éviter
     d'affaiblir la validation d'hôte (`trustHost: true`) sans besoin réel.
 
+## Fait (Phase 9, 3/3 — préparation au déploiement)
+
+- [x] `package.json` : script `postinstall: prisma generate` ajouté — garantit que le client
+      Prisma est régénéré à chaque install (Vercel), sans dépendre d'un ordre implicite entre
+      install et build.
+- [x] `README.md` : section « Déploiement (Vercel + Supabase) » — connexion poolée vs directe
+      Supabase, ordre des opérations (migrations **avant** mise en ligne, jamais de seed en
+      production), tableau des variables d'environnement requises, configuration du webhook
+      Stripe (URL d'endpoint, événement `checkout.session.completed`), bucket Storage,
+      checklist de vérification post-déploiement. Commandes `test`/`test:e2e` ajoutées au
+      tableau des commandes.
+- [x] **Testé** : `npm install` complet relancé pour confirmer que `postinstall` s'exécute
+      sans erreur ; `build`/`lint`/`typecheck`/`test` rejoués une dernière fois après ce
+      changement.
+- [ ] **Non réalisable dans cet environnement** : la création réelle du projet Vercel, son
+      branchement au dépôt GitHub, et le premier déploiement effectif restent un point de
+      blocage humain (nécessite un compte Vercel et les identifiants Supabase/Stripe/Resend
+      réels listés dans le tableau du README).
+
+**Phase 9 terminée** (tests automatisés, sécurité, préparation au déploiement).
+
 ## À faire ensuite
 
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
-- [ ] Phase 9, 3/3 — déploiement (préparation Vercel : documentation, variables
-      d'environnement requises ; la création du compte/projet reste un point de blocage
-      humain).
+- [ ] Phase 10 (post-lancement, cf. plan d'exécution) : EN + multi-devises (next-intl),
+      Algolia en option, Cloudinary en option, Sentry (monitoring), fonctionnalités
+      post-lancement listées dans le plan fourni séparément.
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
       juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà
