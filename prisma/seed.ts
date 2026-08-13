@@ -205,7 +205,18 @@ async function main() {
     }
   }
 
-  console.log(`Seed terminé : ${categories.length} catégories.`);
+  await prisma.coupon.upsert({
+    where: { code: 'BIENVENUE10' },
+    update: {},
+    create: {
+      code: 'BIENVENUE10',
+      type: 'PERCENTAGE',
+      value: 10,
+      validFrom: new Date('2024-01-01'),
+    },
+  });
+
+  console.log(`Seed terminé : ${categories.length} catégories, 1 coupon.`);
 }
 
 main()

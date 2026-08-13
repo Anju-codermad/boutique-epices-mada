@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { buttonVariants } from '@/components/ui/Button';
+import { Button, buttonVariants } from '@/components/ui/Button';
 import { useCart, useCartTotalTtcCents } from '@/hooks/useCart';
+import { useCheckout } from '@/hooks/useCheckout';
 import { formatPriceTtc } from '@/lib/format';
 
 export default function PanierPage() {
@@ -13,6 +15,8 @@ export default function PanierPage() {
   const removeItem = useCart((state) => state.removeItem);
   const clearCart = useCart((state) => state.clearCart);
   const total = useCartTotalTtcCents();
+  const [couponCode, setCouponCode] = useState('');
+  const { startCheckout, loading, error } = useCheckout();
 
   if (items.length === 0) {
     return (
@@ -109,12 +113,30 @@ export default function PanierPage() {
             Frais de livraison calculés à l&apos;étape suivante (offerts dès 49€ d&apos;achat). Tous
             les prix affichés sont TTC.
           </p>
-          <Link
-            href="/checkout"
-            className={buttonVariants({ variant: 'primary', className: 'w-full' })}
+
+          <div>
+            <label htmlFor="coupon" className="text-sm font-medium">
+              Code promo
+            </label>
+            <input
+              id="coupon"
+              value={couponCode}
+              onChange={(event) => setCouponCode(event.target.value)}
+              placeholder="Ex. BIENVENUE10"
+              className="mt-1 w-full rounded-md border border-border px-3 py-2 text-sm"
+            />
+          </div>
+
+          <Button
+            variant="primary"
+            className="w-full"
+            disabled={loading}
+            onClick={() => startCheckout(couponCode)}
           >
-            Passer commande
-          </Link>
+            {loading ? 'Redirection...' : 'Passer commande'}
+          </Button>
+          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
           <button
             type="button"
             onClick={clearCart}

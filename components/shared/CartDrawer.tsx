@@ -5,8 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { X } from 'lucide-react';
 
-import { buttonVariants } from '@/components/ui/Button';
+import { Button } from '@/components/ui/Button';
 import { useCart, useCartTotalTtcCents } from '@/hooks/useCart';
+import { useCheckout } from '@/hooks/useCheckout';
 import { formatPriceTtc } from '@/lib/format';
 
 const FOCUSABLE_SELECTOR =
@@ -24,6 +25,7 @@ export function CartDrawer({ open, onClose, triggerRef }: CartDrawerProps) {
   const updateQuantity = useCart((state) => state.updateQuantity);
   const removeItem = useCart((state) => state.removeItem);
   const total = useCartTotalTtcCents();
+  const { startCheckout, loading, error } = useCheckout();
 
   useEffect(() => {
     if (!open) {
@@ -162,13 +164,15 @@ export function CartDrawer({ open, onClose, triggerRef }: CartDrawerProps) {
             >
               Voir le panier
             </Link>
-            <Link
-              href="/checkout"
-              onClick={onClose}
-              className={buttonVariants({ variant: 'primary', className: 'w-full' })}
+            <Button
+              variant="primary"
+              className="w-full"
+              disabled={loading}
+              onClick={() => startCheckout()}
             >
-              Passer commande
-            </Link>
+              {loading ? 'Redirection...' : 'Passer commande'}
+            </Button>
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
           </div>
         ) : null}
       </div>

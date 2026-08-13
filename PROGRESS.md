@@ -288,20 +288,57 @@ attendant — voir le détail jour par jour ci-dessous.
 **Phase 5 (pages essentielles du frontend) terminée** : accueil → recherche → catalogue →
 produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré visuellement partout.
 
+## Fait (Jour 18 — session Stripe Checkout, coupon, guest checkout)
+
+- [x] `lib/stripe.ts` : client Stripe (même précaution qu'avec Resend : valeur de repli pour
+      ne pas casser le build sans clé réelle), constantes livraison (5,90€, offerte dès 49€)
+      et pays de livraison autorisés (FR + zone UE).
+- [x] `app/api/checkout/route.ts` : reconstruit **entièrement côté serveur** les prix et le
+      stock depuis Prisma (jamais depuis le client) ; valide un code coupon optionnel
+      (`Coupon` : pourcentage/montant fixe, `validFrom`/`validUntil`/`maxUses`) ; calcule les
+      frais de livraison ; **crée d'abord la commande en base (statut `PENDING`)**, puis la
+      session Stripe Checkout référencée par `metadata.orderId` — si l'appel Stripe échoue,
+      la commande est supprimée (pas de commande orpheline). Guest checkout autorisé
+      (`userId` optionnel), email pré-rempli si connecté.
+- [x] `hooks/useCheckout.ts` : déclenche l'appel `/api/checkout` et redirige vers l'URL
+      Stripe retournée ; branché sur le bouton "Passer commande" du `CartDrawer` et de
+      `/panier` (remplace les liens statiques vers une page `/checkout` qui n'existe pas —
+      Stripe Checkout hébergé fait office de page de paiement).
+- [x] `app/panier/page.tsx` : ajout du champ code promo.
+- [x] `prisma/seed.ts` : ajoute un coupon de test `BIENVENUE10` (10 %).
+- [x] `lib/url.ts` : `getAppUrl()` centralisé (était sur le point d'être dupliqué une
+      troisième fois).
+- [x] **Testé de bout en bout ce qui est testable sans compte Stripe réel** (Playwright +
+      Postgres local) : payload invalide → 400, produit introuvable → 400, stock insuffisant
+      → 400 (avec la bonne variante identifiée), code promo invalide → 400, **calculs
+      vérifiés exacts** (sous-total 29,80€, remise 10 % = 2,98€, livraison 5,90€, total
+      32,72€, via un log temporaire retiré ensuite), **rollback de la commande confirmé en
+      base** quand l'appel Stripe échoue (aucune commande orpheline), affichage propre de
+      l'erreur côté page panier.
+- [ ] **Non testable dans cet environnement** : la création réelle d'une session Stripe et le
+      round-trip de paiement complet — nécessite un compte Stripe (mode test) avec de vraies
+      clés API.
+
 ## À faire ensuite
 
 - [ ] Résoudre le blocage de push GitHub, ouvrir la PR de cette session.
-- [ ] Phase 6 (Jour 18+, paiement Stripe) : nécessitera un compte Stripe (humain) avant de
-      pouvoir tester réellement le tunnel de paiement, bien que le code puisse être écrit
-      avant (clés de test à fournir).
+- [ ] Jour 19 : webhook Stripe (`checkout.session.completed` → commande payée, stock
+      décrémenté) — testable en local en signant moi-même un événement factice avec
+      `stripe.webhooks.generateTestHeaderString`.
+- [ ] Jour 20-21 : emails transactionnels (React Email), adresse de livraison, page de
+      confirmation, tunnel complet avec cartes de test Stripe — **nécessitera un vrai compte
+      Stripe (clés de test) pour être testé en conditions réelles**.
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
       juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà
-      en place sur chacune), test réel de connexion par email et de réception des emails
-      (newsletter, contact) une fois `RESEND_API_KEY`/`CONTACT_EMAIL` fournis.
+      en place sur chacune), test réel de connexion par email, de réception des emails
+      (newsletter, contact) une fois `RESEND_API_KEY`/`CONTACT_EMAIL` fournis, et **création
+      d'un compte Stripe (mode test) avec récupération de `STRIPE_SECRET_KEY` et
+      `STRIPE_WEBHOOK_SECRET`** — bloquant pour tester le tunnel de paiement de bout en
+      bout.
 
 ## Points de blocage humains ouverts
 
