@@ -480,19 +480,63 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
       liste bien produits/catégories/pages statiques, que `/robots.txt` exclut les bonnes
       routes, que le JSON-LD et les balises `<title>`/`<meta description>`/OG s'affichent
       correctement sur une fiche produit réelle, et que `<meta name="robots" content="noindex,
-    nofollow">` est bien présent sur une page admin même authentifiée (session admin
+nofollow">` est bien présent sur une page admin même authentifiée (session admin
       simulée par JWT signé).
+
+## Fait (Phase 9, 1/3 — tests automatisés)
+
+- [x] **Vitest** (`vitest.config.ts`, environnement `jsdom`, alias `@/*`) : 30 tests
+      unitaires sur la logique pure la plus sensible du projet.
+  - `lib/format.test.ts` : `formatPriceTtc`.
+  - `lib/orders.test.ts` : `returnDeadline`/`isReturnEligible` (délai de rétractation de 14
+    jours), avec horloge simulée (`vi.useFakeTimers`) pour tester les bornes exactement.
+  - `lib/pricing.test.ts` : nouveau module `lib/pricing.ts`, **extrait de
+    `app/api/checkout/route.ts`** pour le rendre testable en isolation — calcul de remise
+    (pourcentage arrondi, montant fixe jamais négatif ni supérieur au sous-total), frais de
+    livraison (seuil d'offre), validité d'un coupon (dates, quota d'usage), et le calcul du
+    total combinant les trois (y compris le cas d'un coupon invalide qui ne doit jamais faire
+    échouer le calcul, et la livraison qui doit rester basée sur le sous-total **avant**
+    remise). `app/api/checkout/route.ts` réécrit pour utiliser ce module au lieu de calculs
+    en ligne, revérifié par un test manuel du endpoint (commande créée avec le bon total,
+    puis correctement supprimée quand l'appel Stripe échoue faute de vraies clés — même
+    garantie qu'avant le refactor).
+  - `hooks/useCart.test.ts` : store Zustand testé directement (`useCart.getState()`), sans
+    rendu React — refus d'ajout à stock nul, cumul de quantité, suppression, mise à jour de
+    quantité (y compris retrait automatique à 0), vidage du panier, sélecteurs de total/count.
+  - `npm test` ajouté aux scripts et à la CI (`.github/workflows/ci.yml`).
+- [x] **Playwright** (`playwright.config.ts`, `tests/e2e/`) : suite E2E désormais **committée
+      dans le dépôt** (contrairement aux scripts Playwright ad hoc utilisés jusqu'ici pour
+      les vérifications ponctuelles en session, toujours installés puis désinstallés).
+      Volontairement limitée aux parcours qui ne dépendent d'aucune API externe
+      (Stripe/Resend indisponibles en CI) :
+  - `navigation.spec.ts` : accueil (héro, familles d'épices), catalogue (liste, filtre
+    catégorie, recherche texte), fiche produit (affichage, 404 sur slug inconnu).
+  - `cart.spec.ts` : ajout au panier depuis la fiche produit (badge du header, tiroir
+    panier), page `/panier` (modification de quantité, retrait d'un article).
+  - `npm run test:e2e` ajouté aux scripts. Nouveau job CI `e2e` avec un vrai service
+    PostgreSQL (migrations + seed réels, pas de placeholder), installation des navigateurs
+    Playwright (`playwright install --with-deps chromium` — cet environnement de session a
+    un Chromium préinstallé à une version différente, `playwright.config.ts` expose donc une
+    option `PLAYWRIGHT_CHROMIUM_EXECUTABLE` pour pointer dessus sans jamais lancer
+    `playwright install` en session), rapport uploadé en artefact en cas d'échec.
+  - **Testé** : les 6 tests passent en local contre le Postgres de session (deux bugs réels
+    trouvés et corrigés dans les tests eux-mêmes en cours d'écriture — sélecteurs `getByRole`
+    ambigus entre le bouton panier du header et le bouton « Ajouter au panier », et entre le
+    nom du produit dans le tiroir et son label de quantité — corrigés avec `exact: true`).
 
 ## À faire ensuite
 
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
-- [ ] Phase 9 : tests automatisés (Vitest/Playwright intégrés au dépôt), sécurité (les 5
-      vulnérabilités `npm audit` de niveau élevé identifiées viennent toutes de Next
+- [ ] Phase 9, 2/3 — sécurité : revue ciblée (en-têtes de sécurité, rate limiting, dépendances).
+      Les 5 vulnérabilités `npm audit` de niveau élevé identifiées viennent toutes de Next
       14.2.35/postcss/glob — une montée vers Next 16 les corrigerait mais casserait le choix
-      de stack verrouillé dans `CLAUDE.md` ; à réévaluer en Phase 9 plutôt qu'agir
-      unilatéralement), déploiement.
+      de stack verrouillé dans `CLAUDE.md` ; documentée comme arbitrage plutôt que corrigée
+      unilatéralement.
+- [ ] Phase 9, 3/3 — déploiement (préparation Vercel : documentation, variables
+      d'environnement requises ; la création du compte/projet reste un point de blocage
+      humain).
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
       juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà
