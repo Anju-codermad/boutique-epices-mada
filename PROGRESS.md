@@ -5,13 +5,15 @@ détail de chaque phase/jour.
 
 ## État actuel
 
-Phase 3 (Jour 5 et 6) terminée. Un Postgres 16 local (installé dans l'environnement
-d'exécution, pas Supabase) a permis de réellement exécuter `prisma migrate dev --name init`
-et `prisma db seed` de bout en bout — la migration réelle est committée dans
-`prisma/migrations/`. Il faudra la réappliquer (ou la revalider) contre la vraie base
+**Phase 5 terminée (Jour 17)** : accueil, catalogue, fiche produit, panier, connexion,
+compte client, avis, newsletter, contact, FAQ, pages d'erreur — tout testé de bout en bout
+contre un Postgres 16 local (installé dans l'environnement d'exécution, pas Supabase) avec
+Playwright. La migration réelle (`prisma migrate dev --name init`) est committée dans
+`prisma/migrations/` ; il faudra la réappliquer (ou la revalider) contre la vraie base
 Supabase une fois les identifiants disponibles. `build`, `lint`, `typecheck` et
-`format:check` passent tous. Le push vers GitHub est actuellement bloqué (voir "Points de
-blocage" ci-dessous) ; le travail est commité localement en attendant.
+`format:check` passent tous à chaque étape. Le push vers GitHub est actuellement bloqué
+(voir "Points de blocage" ci-dessous) ; 17 jours de plan sont commités localement en
+attendant — voir le détail jour par jour ci-dessous.
 
 ## Fait
 
@@ -254,20 +256,52 @@ blocage" ci-dessous) ; le travail est commité localement en attendant.
       complète, rendu des 3 pages légales (bandeau d'avertissement présent, clause 14 jours
       présente sur les CGV).
 
+## Fait (Jour 17 — contact, FAQ, pages d'erreur) — Phase 5 terminée
+
+- [x] `lib/emails.ts` : `sendContactEmail()`. **Bug de sécurité corrigé avant test** :
+      nom/email/sujet/message venant d'un formulaire public étaient interpolés tels quels
+      dans le HTML de l'email envoyé au propriétaire de la boutique (injection HTML dans
+      l'email de notification) — ajout d'un `escapeHtml()`.
+- [x] `app/api/contact/route.ts` : validation Zod, honeypot (`website`). **Bug corrigé après
+      test** : le champ honeypot était déclaré `z.string().max(0)`, donc un bot qui le
+      remplit faisait échouer le _schéma_ et recevait un 400 — révélant l'existence du piège
+      au lieu de renvoyer un faux succès silencieux. Corrigé pour accepter toute chaîne et
+      vérifier séparément après validation.
+- [x] `components/shared/ContactForm.tsx` : formulaire avec honeypot masqué (hors tabulation,
+      hors du flux visuel). **Bug React corrigé après test** : `event.currentTarget` devient
+      `null` après un `await` (comportement documenté de React) — l'appel
+      `event.currentTarget.reset()` après le `fetch` levait donc une exception rattrapée par
+      le `catch`, qui écrasait silencieusement le message de succès par un message d'erreur
+      alors que l'envoi avait réussi. Corrigé en capturant `form = event.currentTarget` avant
+      l'`await`.
+- [x] `app/faq/page.tsx` : accordéon en `<details>`/`<summary>` natifs (zéro JS), 5 sections
+      couvrant livraison, retours/remboursements, origine, certifications, paiement.
+- [x] `app/not-found.tsx` (404) et `app/error.tsx` (erreur générique + bouton réessayer),
+      stylées à la charte.
+- [x] **Testé de bout en bout** (Playwright + Postgres local) : envoi normal (email tenté via
+      Resend, échec attendu sans clé réelle mais réponse 200 correcte côté API), **les deux
+      bugs ci-dessus ont été détectés par ce test** (honeypot renvoyant 400, message de
+      succès non affiché) puis corrigés et revérifiés (honeypot → 200 silencieux, message de
+      succès affiché, formulaire réinitialisé), accordéon FAQ (ouverture/fermeture), 404 et
+      rendu de la page d'erreur.
+
+**Phase 5 (pages essentielles du frontend) terminée** : accueil → recherche → catalogue →
+produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré visuellement partout.
+
 ## À faire ensuite
 
-- [ ] Jour 17 : contact (formulaire + honeypot), FAQ, pages d'erreur (404/500) — prochaine
-      étape.
+- [ ] Résoudre le blocage de push GitHub, ouvrir la PR de cette session.
+- [ ] Phase 6 (Jour 18+, paiement Stripe) : nécessitera un compte Stripe (humain) avant de
+      pouvoir tester réellement le tunnel de paiement, bien que le code puisse être écrit
+      avant (clés de test à fournir).
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
-- [ ] Phase 6 (paiement Stripe) : nécessitera un compte Stripe (humain) avant de pouvoir
-      tester réellement le tunnel de paiement, bien que le code puisse être écrit avant.
-- [ ] **Validation humaine requise** : relecture visuelle (`/design-system`, page d'accueil,
-      catalogue), relecture du schéma Prisma + données de seed, relecture juridique des
-      pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà en place sur
-      chacune), test réel de connexion par email et de réception des emails newsletter une
-      fois `RESEND_API_KEY` fourni.
+- [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
+      cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
+      juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà
+      en place sur chacune), test réel de connexion par email et de réception des emails
+      (newsletter, contact) une fois `RESEND_API_KEY`/`CONTACT_EMAIL` fournis.
 
 ## Points de blocage humains ouverts
 
