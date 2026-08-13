@@ -3,6 +3,12 @@ import type { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getAppUrl } from '@/lib/url';
 
+// Interroge la base à chaque requête plutôt qu'au build : sans ça, Next.js tente de
+// pré-rendre /sitemap.xml statiquement au build, ce qui échoue dès que DATABASE_URL ne
+// pointe pas vers une vraie base accessible (ex. le job CI lint-typecheck-build, qui build
+// volontairement sans base réelle).
+export const dynamic = 'force-dynamic';
+
 const STATIC_ROUTES = [
   '',
   '/boutique',
