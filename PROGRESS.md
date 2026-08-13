@@ -373,15 +373,39 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
 - [ ] **Non testable dans cet environnement** : réception réelle des emails (nécessite
       `RESEND_API_KEY`).
 
+## Fait (Jour 21 — page de confirmation de commande)
+
+- [x] `app/commande/confirmation/page.tsx` : Server Component lisant `?session_id=` (Stripe
+      Checkout Session ID) et recherchant la commande correspondante en base
+      (`stripeSessionId`), source de vérité = la BDD (donc le webhook), jamais l'URL/le
+      client. Récapitulatif complet (articles, livraison, remise, total TTC) et adresse de
+      livraison affichés. `notFound()` (404) si `session_id` absent ou commande introuvable.
+- [x] Gère explicitement la situation de course avec le webhook Stripe : si la commande est
+      encore `PENDING` au moment où l'utilisateur atterrit sur la page (webhook pas encore
+      traité), affichage d'un message « paiement en cours de confirmation » plutôt que
+      d'attendre/bloquer — jamais de logique de confirmation de paiement côté client.
+- [x] `components/shared/ClearCartOnMount.tsx` : petit composant client qui vide le panier
+      (`useCart().clearCart()`) au montage de la page de confirmation, pour éviter qu'un
+      client revenant sur le site voie encore les articles déjà commandés dans son panier.
+- [x] **Testé de bout en bout** (Postgres local + Playwright éphémère, désinstallé après
+      usage) : deux commandes de test créées directement en base (une `PAID`, une
+      `PENDING`) avec leurs `stripeSessionId` ; captures d'écran des deux états vérifiées
+      visuellement (récapitulatif, montants TTC, adresse, message d'attente) ; cas
+      `session_id` absent et `session_id` inconnu confirmés en 404 ; vidage effectif du
+      panier (`localStorage`) vérifié par script Playwright avant/après navigation. Données
+      de test nettoyées après vérification.
+- [ ] **Non testable dans cet environnement** : le tunnel réel avec les cartes de test Stripe
+      (4242.../4000...0002) nécessite un vrai compte Stripe (clés de test,
+      `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`) pour déclencher un vrai `checkout.session.completed`.
+
 ## À faire ensuite
 
-- [ ] Résoudre le blocage de push GitHub, ouvrir la PR de cette session.
-- [ ] Jour 21 : `app/commande/confirmation/page.tsx`, test du tunnel complet avec les cartes
-      de test Stripe (4242.../4000...0002) et un parcours avec coupon — **nécessitera un vrai
-      compte Stripe (clés de test) pour être testé en conditions réelles**.
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
+- [ ] Phase 7 : droit de rétractation / remboursements (email `RefundConfirmationEmail.tsx`
+      déjà prêt depuis le Jour 20, reste à écrire le flux admin de traitement d'un retour).
+- [ ] Phase 8 : SEO/perf/a11y/RGPD/analytics.
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
       juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà
@@ -393,10 +417,10 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
 
 ## Points de blocage humains ouverts
 
-- **Push GitHub bloqué** : l'app GitHub connectée à cette session n'a pas la permission
-  d'écriture ("Contents") sur `Anju-codermad/boutique-epices-mada` (`403 Resource not
-accessible by integration`). À corriger dans les paramètres de l'app GitHub /
-  intégration côté claude.ai pour permettre les push et PR.
+- **Push GitHub** : ✅ résolu — le dépôt `boutique-epices-mada` manquait dans la liste des
+  dépôts autorisés de l'app GitHub « Claude » (`github.com/settings/installations`), il a
+  été ajouté par l'utilisateur. Les 18 premiers commits (Phase 0 → Jour 20) ont été poussés
+  avec succès sur `claude/new-session-ie7dn1`.
 - **`ui.shadcn.com` bloqué par la politique réseau** de cet environnement d'exécution (403 sur
   le proxy sortant) — la CLI `shadcn` ne peut pas être utilisée ; contournement : composants
   shadcn écrits à la main (voir "Fait" ci-dessus). Pas d'action requise sauf si un accès à
