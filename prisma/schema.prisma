@@ -182,8 +182,10 @@ model Address {
   country    String  @default("FR")
   phone      String?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Optionnel : une adresse peut être créée pour une commande "guest checkout"
+  // sans compte utilisateur associé.
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   orders Order[]
 

@@ -319,15 +319,39 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
       round-trip de paiement complet — nécessite un compte Stripe (mode test) avec de vraies
       clés API.
 
+## Fait (Jour 19 — webhook Stripe, commandes)
+
+- [x] **Correction de modélisation découverte en écrivant le webhook** :
+      `Address.userId` était obligatoire dans le schéma, ce qui empêchait de stocker
+      l'adresse de livraison d'une commande "guest checkout" (sans compte). Corrigé
+      (`userId` optionnel), nouvelle migration `address_optional_user` appliquée et testée
+      contre le Postgres local.
+- [x] `app/api/webhooks/stripe/route.ts` : vérifie la signature (`stripe-signature` +
+      `STRIPE_WEBHOOK_SECRET`, corps brut lu via `request.text()`), écoute
+      `checkout.session.completed`. Retrouve la commande `PENDING` déjà créée au Jour 18 via
+      `metadata.orderId` (idempotent : ignore si déjà traitée), crée l'adresse de livraison
+      depuis `session.collected_information.shipping_details` (liée ou non à un `userId`
+      selon guest/connecté), décrémente le stock des variantes **en transaction** (avec garde
+      `stock >= quantity` pour éviter le négatif), passe la commande à `PAID`. Retourne
+      toujours 200 pour les erreurs métier (journalisées) — seule une signature invalide
+      renvoie 400.
+- [x] **Testé de bout en bout** en signant moi-même un faux événement
+      `checkout.session.completed` avec `stripe.webhooks.generateTestHeaderString` (même
+      secret que le serveur) : commande passée à `PAID`, stock décrémenté de la bonne
+      quantité (vérifié en base), adresse créée et liée (**scénario guest** : `userId` NULL,
+      `guestEmail` renseigné ; **scénario connecté** : adresse liée au bon `userId`),
+      **idempotence vérifiée** (rejeu du même événement → stock non re-décrémenté), signature
+      invalide → 400. Données de test nettoyées après vérification.
+- [ ] **Non testable dans cet environnement** : réception d'un vrai webhook envoyé par
+      Stripe — nécessite un compte Stripe réel avec `STRIPE_WEBHOOK_SECRET` configuré.
+
 ## À faire ensuite
 
 - [ ] Résoudre le blocage de push GitHub, ouvrir la PR de cette session.
-- [ ] Jour 19 : webhook Stripe (`checkout.session.completed` → commande payée, stock
-      décrémenté) — testable en local en signant moi-même un événement factice avec
-      `stripe.webhooks.generateTestHeaderString`.
-- [ ] Jour 20-21 : emails transactionnels (React Email), adresse de livraison, page de
-      confirmation, tunnel complet avec cartes de test Stripe — **nécessitera un vrai compte
-      Stripe (clés de test) pour être testé en conditions réelles**.
+- [ ] Jour 20-21 : emails transactionnels (React Email), formulaire d'adresse, page admin
+      commandes (statut + suivi de colis), page de confirmation, tunnel complet avec cartes
+      de test Stripe — **nécessitera un vrai compte Stripe (clés de test) pour être testé en
+      conditions réelles**.
 - [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
       (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
       le rôle admin, disponible depuis le Jour 10) mais pas testé.
