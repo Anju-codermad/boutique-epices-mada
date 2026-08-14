@@ -90,6 +90,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           status: 'PAID',
           guestEmail: order.userId ? undefined : (customerDetails?.email ?? undefined),
           addressId,
+          stripePaymentIntentId:
+            typeof session.payment_intent === 'string' ? session.payment_intent : undefined,
         },
       }),
     ]);

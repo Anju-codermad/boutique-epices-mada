@@ -27,6 +27,8 @@ npm run lint             # ESLint
 npm run typecheck        # tsc --noEmit
 npm run format            # Prettier (écrit)
 npm run format:check      # Prettier (vérifie)
+npm test                  # tests unitaires (Vitest)
+npm run test:e2e          # tests end-to-end (Playwright — nécessite une base de données)
 npx prisma migrate dev    # migrations en développement
 npx prisma db seed        # seed — JAMAIS sur la base de production
 ```
@@ -35,3 +37,59 @@ npx prisma db seed        # seed — JAMAIS sur la base de production
 
 Le script `prisma/seed.ts` ne doit **jamais** être exécuté sur la base de données de
 production — uniquement en local ou en staging.
+
+## Déploiement (Vercel + Supabase)
+
+Le projet est conçu pour Vercel (hébergement) + Supabase (PostgreSQL + Storage), sans
+configuration Vercel particulière au-delà des variables d'environnement — Next.js 14 est
+détecté automatiquement (build command `next build`, `postinstall` régénère le client Prisma
+à chaque install).
+
+### 1. Base de données Supabase
+
+1. Créer un projet Supabase (mode production).
+2. Récupérer les deux chaînes de connexion Postgres dans les paramètres du projet : la
+   connexion **poolée** (pgBouncer, port 6543) pour `DATABASE_URL`, et la connexion
+   **directe** (port 5432) pour `DIRECT_URL` (nécessaire aux migrations Prisma, qui ne
+   passent pas par le pooler).
+3. Appliquer les migrations contre cette base **avant** ou pendant le premier déploiement :
+   `npx prisma migrate deploy` (Vercel n'exécute pas les migrations automatiquement — à
+   lancer manuellement, ou via une étape de CI/CD dédiée).
+4. **Ne jamais exécuter `npx prisma db seed` contre la base de production.**
+
+### 2. Variables d'environnement (paramètres du projet Vercel)
+
+Toutes les variables listées dans `.env.example` doivent être renseignées en production :
+
+| Variable                        | Origine                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `DATABASE_URL` / `DIRECT_URL`   | Supabase → Project Settings → Database                                                          |
+| `AUTH_SECRET`                   | Générer avec `npx auth secret`                                                                  |
+| `RESEND_API_KEY` / `EMAIL_FROM` | Compte Resend, domaine d'envoi vérifié                                                          |
+| `NEXT_PUBLIC_APP_URL`           | URL publique du site (ex. `https://boutique-epices-mada.vercel.app` ou le domaine personnalisé) |
+| `CONTACT_EMAIL`                 | Adresse recevant les messages du formulaire de contact                                          |
+| `STRIPE_SECRET_KEY`             | Compte Stripe (clé **live** en production, clé test en preview)                                 |
+| `STRIPE_WEBHOOK_SECRET`         | Voir étape 3 ci-dessous                                                                         |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase → Project Settings → API                                                               |
+| `SUPABASE_SERVICE_ROLE_KEY`     | Supabase → Project Settings → API (clé `service_role`, secrète)                                 |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Compte Upstash (facultatif : sans ces variables, la limitation de débit sur `/api/checkout` et `/api/contact` est simplement désactivée) |
+
+### 3. Webhook Stripe
+
+Dans le dashboard Stripe, créer un endpoint webhook pointant vers
+`https://<domaine>/api/webhooks/stripe`, écoutant l'événement `checkout.session.completed`.
+Copier le secret de signature généré (`whsec_...`) dans `STRIPE_WEBHOOK_SECRET`.
+
+### 4. Storage Supabase (images produits)
+
+Dans Supabase Storage, créer un bucket **public** nommé exactement `product-images` (utilisé
+par `/admin/produits` pour l'upload d'images). Le domaine `*.supabase.co` est déjà autorisé
+dans `next.config.mjs` (`images.remotePatterns`).
+
+### 5. Après le premier déploiement
+
+- Vérifier `/robots.txt` et `/sitemap.xml`.
+- Tester le parcours de paiement complet avec une carte de test Stripe, puis en mode live
+  avec un montant réel avant l'ouverture au public.
+- Vérifier la réception réelle des emails transactionnels (confirmation de commande, magic
+  link de connexion, contact, newsletter).

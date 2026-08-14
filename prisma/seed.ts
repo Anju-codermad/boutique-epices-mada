@@ -22,6 +22,9 @@ type SeedProduct = {
   certifications: CertificationType[];
   isNew?: boolean;
   variants: SeedVariant[];
+  // Illustration de substitution (public/products/), en attendant de vraies photos produit.
+  imageFile: string;
+  imageAlt: string;
 };
 
 type SeedCategory = {
@@ -49,6 +52,8 @@ const categories: SeedCategory[] = [
           { sku: 'VAN-BOU-6', weightGrams: 30, priceTtcCents: 2690, stock: 25 },
           { sku: 'VAN-BOU-12', weightGrams: 60, priceTtcCents: 4990, stock: 10 },
         ],
+        imageFile: 'vanille.jpg',
+        imageAlt: 'Gousses de vanille Bourbon de Madagascar',
       },
     ],
   },
@@ -67,6 +72,8 @@ const categories: SeedCategory[] = [
           { sku: 'POI-VOA-50', weightGrams: 50, priceTtcCents: 1890, stock: 30 },
           { sku: 'POI-VOA-100', weightGrams: 100, priceTtcCents: 3390, stock: 15 },
         ],
+        imageFile: 'poivre-sauvage.jpg',
+        imageAlt: 'Grains de poivre sauvage voatsiperifery',
       },
     ],
   },
@@ -85,6 +92,8 @@ const categories: SeedCategory[] = [
           { sku: 'CAN-BAT-100', weightGrams: 100, priceTtcCents: 890, stock: 60 },
           { sku: 'CAN-BAT-250', weightGrams: 250, priceTtcCents: 1790, stock: 35 },
         ],
+        imageFile: 'cannelle.jpg',
+        imageAlt: 'Bâtons de cannelle de Madagascar',
       },
     ],
   },
@@ -104,6 +113,8 @@ const categories: SeedCategory[] = [
           { sku: 'CUR-POU-250', weightGrams: 250, priceTtcCents: 1390, stock: 45 },
           { sku: 'CUR-POU-500', weightGrams: 500, priceTtcCents: 2490, stock: 20 },
         ],
+        imageFile: 'curcuma.jpg',
+        imageAlt: 'Curcuma en poudre',
       },
     ],
   },
@@ -122,6 +133,8 @@ const categories: SeedCategory[] = [
           { sku: 'GIN-POU-100', weightGrams: 100, priceTtcCents: 650, stock: 55 },
           { sku: 'GIN-POU-250', weightGrams: 250, priceTtcCents: 1290, stock: 30 },
         ],
+        imageFile: 'gingembre.jpg',
+        imageAlt: 'Gingembre en poudre',
       },
     ],
   },
@@ -140,6 +153,8 @@ const categories: SeedCategory[] = [
           { sku: 'PIM-OIS-50', weightGrams: 50, priceTtcCents: 590, stock: 0 },
           { sku: 'PIM-OIS-100', weightGrams: 100, priceTtcCents: 990, stock: 20 },
         ],
+        imageFile: 'piment.jpg',
+        imageAlt: 'Piments oiseau séchés de Madagascar',
       },
     ],
   },
@@ -159,6 +174,8 @@ const categories: SeedCategory[] = [
           { sku: 'COF-DEC-1', weightGrams: 400, priceTtcCents: 3990, stock: 18 },
           { sku: 'COF-DEC-2', weightGrams: 700, priceTtcCents: 6490, stock: 8 },
         ],
+        imageFile: 'coffrets-cadeaux.jpg',
+        imageAlt: 'Coffret découverte des épices de Madagascar',
       },
     ],
   },
@@ -177,7 +194,7 @@ async function main() {
     });
 
     for (const product of category.products) {
-      await prisma.product.upsert({
+      const createdProduct = await prisma.product.upsert({
         where: { slug: product.slug },
         update: {
           name: product.name,
@@ -200,6 +217,20 @@ async function main() {
           variants: {
             create: product.variants,
           },
+        },
+      });
+
+      // Illustration de substitution (public/products/) : en attendant de vraies photos
+      // produit, jamais uploadée via Supabase Storage (path: null), donc rien à nettoyer côté
+      // Storage si elle est un jour remplacée.
+      await prisma.productImage.deleteMany({ where: { productId: createdProduct.id } });
+      await prisma.productImage.create({
+        data: {
+          productId: createdProduct.id,
+          url: `/products/${product.imageFile}`,
+          path: null,
+          alt: product.imageAlt,
+          position: 0,
         },
       });
     }

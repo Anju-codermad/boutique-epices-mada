@@ -1,6 +1,14 @@
+import type { Metadata } from 'next';
+
 import { Button } from '@/components/ui/Button';
+import { NOINDEX_ROBOTS } from '@/lib/seo';
 
 import { unsubscribeFromNewsletter } from './actions';
+
+export const metadata: Metadata = {
+  title: 'Désinscription newsletter',
+  robots: NOINDEX_ROBOTS,
+};
 
 export default function NewsletterDesinscriptionPage({
   searchParams,

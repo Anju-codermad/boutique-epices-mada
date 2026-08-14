@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { Button } from '@/components/ui/Button';
 import { formatPriceTtc } from '@/lib/format';
-import { orderStatusLabels } from '@/lib/orders';
+import { orderStatusLabels, returnDeadline } from '@/lib/orders';
 
 import { updateOrder } from './actions';
 
@@ -51,6 +51,19 @@ export default async function AdminCommandesPage() {
                   </li>
                 ))}
               </ul>
+
+              {order.deliveredAt ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Livrée le {new Date(order.deliveredAt).toLocaleDateString('fr-FR')}
+                  {order.status === 'DELIVERED' ? (
+                    <>
+                      {' '}
+                      — retour possible jusqu&apos;au{' '}
+                      {returnDeadline(order)?.toLocaleDateString('fr-FR')}
+                    </>
+                  ) : null}
+                </p>
+              ) : null}
 
               <form
                 action={updateOrder.bind(null, order.id)}

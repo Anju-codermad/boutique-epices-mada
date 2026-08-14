@@ -3,13 +3,10 @@ import { z } from 'zod';
 
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import {
-  ALLOWED_SHIPPING_COUNTRIES,
-  FREE_SHIPPING_THRESHOLD_CENTS,
-  SHIPPING_COST_CENTS,
-  stripe,
-} from '@/lib/stripe';
+import { ALLOWED_SHIPPING_COUNTRIES, stripe } from '@/lib/stripe';
 import { getAppUrl } from '@/lib/url';
+import { computeDiscountCents, computeShippingCents, isCouponValid } from '@/lib/pricing';
+import { checkCheckoutRateLimit, clientIdentifier } from '@/lib/rate-limit';
 
 const checkoutSchema = z.object({
   items: z
@@ -24,6 +21,14 @@ const checkoutSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const allowed = await checkCheckoutRateLimit(clientIdentifier(request));
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Trop de tentatives, réessayez dans quelques instants.' },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = checkoutSchema.safeParse(body);
 
@@ -80,24 +85,15 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     coupon = await prisma.coupon.findUnique({ where: { code: couponCode.toUpperCase() } });
 
-    const isValid =
-      coupon &&
-      coupon.validFrom <= now &&
-      (coupon.validUntil === null || coupon.validUntil >= now) &&
-      (coupon.maxUses === null || coupon.usedCount < coupon.maxUses);
-
-    if (!isValid) {
+    if (!isCouponValid(coupon, now)) {
       return NextResponse.json({ error: 'Code promo invalide ou expiré' }, { status: 400 });
     }
 
-    discountCents =
-      coupon!.type === 'PERCENTAGE'
-        ? Math.round((subtotalCents * coupon!.value) / 100)
-        : Math.min(coupon!.value, subtotalCents);
+    discountCents = computeDiscountCents(coupon, subtotalCents);
   }
 
   // Le seuil de livraison offerte s'applique au montant des produits avant remise.
-  const shippingCents = subtotalCents >= FREE_SHIPPING_THRESHOLD_CENTS ? 0 : SHIPPING_COST_CENTS;
+  const shippingCents = computeShippingCents(subtotalCents);
   const totalTtcCents = subtotalCents - discountCents + shippingCents;
 
   const order = await prisma.order.create({

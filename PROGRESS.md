@@ -5,15 +5,20 @@ détail de chaque phase/jour.
 
 ## État actuel
 
-**Phase 5 terminée (Jour 17)** : accueil, catalogue, fiche produit, panier, connexion,
-compte client, avis, newsletter, contact, FAQ, pages d'erreur — tout testé de bout en bout
-contre un Postgres 16 local (installé dans l'environnement d'exécution, pas Supabase) avec
-Playwright. La migration réelle (`prisma migrate dev --name init`) est committée dans
-`prisma/migrations/` ; il faudra la réappliquer (ou la revalider) contre la vraie base
-Supabase une fois les identifiants disponibles. `build`, `lint`, `typecheck` et
-`format:check` passent tous à chaque étape. Le push vers GitHub est actuellement bloqué
-(voir "Points de blocage" ci-dessous) ; 17 jours de plan sont commités localement en
-attendant — voir le détail jour par jour ci-dessous.
+**Phases 0 à 9 terminées** : catalogue, panier, comptes, checkout Stripe (webhook,
+remboursements), emails transactionnels, SEO/accessibilité/RGPD/analytics, tests automatisés
+(Vitest + Playwright, intégrés à la CI), sécurité (en-têtes, CSP, revue ciblée), préparation
+au déploiement (README). **Jour 9 (upload Supabase Storage) rattrapé** et **gestion admin des
+produits** (CRUD complet, absent jusqu'ici malgré la mention dans la description de la
+première PR) ajoutés dans cette session. Tout testé de bout en bout contre un Postgres 16
+local (installé dans l'environnement d'exécution, pas Supabase) faute d'identifiants réels.
+`build`, `lint`, `typecheck`, `test` et `format:check` passent tous à chaque étape et sont
+vérifiés par la CI GitHub Actions à chaque PR. Le dépôt GitHub est à jour (push et PR
+fonctionnels depuis la correction du blocage de permission de l'app GitHub — voir "Points de
+blocage" pour l'historique). Reste : upload Supabase Storage non testable en conditions
+réelles (bucket/credentials réels requis), Phase 10 (post-lancement, hors monitoring Sentry),
+et l'ensemble des validations humaines listées ci-dessous (comptes tiers, relectures
+juridiques) — voir le détail jour par jour plus bas.
 
 ## Fait
 
@@ -398,14 +403,443 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
       (4242.../4000...0002) nécessite un vrai compte Stripe (clés de test,
       `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`) pour déclencher un vrai `checkout.session.completed`.
 
+## Fait (Phase 7 — droit de rétractation, remboursements)
+
+- [x] `prisma/schema.prisma` : ajout de `Order.stripePaymentIntentId` (nécessaire pour émettre
+      un vrai remboursement Stripe) et `Order.deliveredAt` (point de départ du délai légal de
+      rétractation de 14 jours, vente à distance UE). Migration
+      `20260813114052_order_refund_tracking`.
+- [x] `app/api/webhooks/stripe/route.ts` : capture `session.payment_intent` à la confirmation
+      du paiement et le stocke sur la commande.
+- [x] `lib/orders.ts` : `returnDeadline()`/`isReturnEligible()`, calcul serveur de
+      l'éligibilité au retour (jamais fait confiance à un statut envoyé par le client).
+      `RETURN_WINDOW_DAYS = 14` centralisé dans `lib/stripe.ts`.
+- [x] `app/compte/commandes/` : bouton « Demander un retour » (Server Action `requestReturn`)
+      visible uniquement si la commande est `DELIVERED` et dans les 14 jours suivant
+      `deliveredAt` — revérifié côté serveur à chaque appel, pas seulement à l'affichage.
+      Passage à `RETURN_REQUESTED`. Messages d'état pour chaque statut (délai dépassé, retour
+      demandé, retour reçu).
+- [x] `app/admin/commandes/actions.ts` : passage à `DELIVERED` horodate automatiquement
+      `deliveredAt`. Passage à `REFUNDED` déclenche un **vrai remboursement Stripe**
+      (`stripe.refunds.create`, jamais un simple changement de statut) puis, seulement si
+      l'appel réussit, restocke les variantes retournées et met à jour la commande dans une
+      transaction ; garde d'idempotence (`existing.status !== 'REFUNDED'`) pour ne jamais
+      rembourser/restocker deux fois. Email de remboursement envoyé en best-effort (comme les
+      autres emails transactionnels).
+- [x] **Testé de bout en bout** (Postgres local, sessions JWT signées manuellement pour un
+      compte client et un compte admin, Playwright éphémère) : affichage correct des 3 états
+      (éligible avec échéance affichée, délai dépassé, retour déjà demandé) ; clic réel sur
+      « Demander un retour » vérifié en base (transition `DELIVERED` → `RETURN_REQUESTED`) ;
+      tentative de remboursement admin avec un faux `payment_intent` confirmée en échec
+      propre (l'appel Stripe échoue, l'erreur remonte via `error.tsx`, **aucune mutation en
+      base n'a lieu** — statut et stock inchangés, vérifié directement en base) ; logique de
+      transaction (restock + passage à `REFUNDED`) rejouée isolément avec succès ; ré-soumission
+      d'un remboursement déjà effectué confirmée sans nouvel appel Stripe ni double restock
+      (idempotence). Données de test nettoyées après vérification.
+- [ ] **Non testable dans cet environnement** : le vrai appel `stripe.refunds.create` échoue
+      systématiquement ici faute de clé Stripe réelle (erreur réseau/format de réponse) — la
+      logique métier autour de l'appel est entièrement vérifiée, mais l'appel lui-même
+      nécessitera un vrai compte Stripe (clés de test) pour être validé en conditions réelles.
+
+## Fait (Phase 8 — SEO, accessibilité, RGPD, analytics)
+
+- [x] **SEO** : `metadataBase` + template de titre (`%s — Boutique d'épices de Madagascar`)
+      centralisés dans `app/layout.tsx` (`lib/seo.ts` pour les constantes partagées),
+      Open Graph/Twitter card par défaut. Toutes les pages qui avaient déjà un titre complet
+      manuel (`cgv`, `confidentialite`, `contact`, `faq`, `mentions-legales`,
+      `produits/[slug]`) adaptées au template pour éviter le double suffixe. Métadonnées
+      (titre + description) ajoutées aux pages qui n'en avaient aucune (`boutique`) ;
+      `robots: { index: false, follow: false }` ajouté sur les pages privées/sans intérêt
+      SEO (`panier` via un nouveau `layout.tsx` — page client, `connexion`,
+      `commande/confirmation`, tout `/compte/*` via `compte/layout.tsx`, tout `/admin/*` via
+      un nouveau `admin/layout.tsx`, `newsletter/confirmation`,
+      `newsletter/desinscription`, `design-system`).
+- [x] `app/robots.ts` et `app/sitemap.ts` (dynamiques, App Router) : sitemap listant les
+      pages statiques, les catégories et tous les produits (avec `lastModified`) ; robots.txt
+      excluant `/admin`, `/compte`, `/panier`, `/connexion`, `/commande/confirmation`, `/api`.
+- [x] Données structurées JSON-LD `Product` (schema.org) sur la fiche produit — nom,
+      description, images, `AggregateOffer` (prix min/max TTC, disponibilité),
+      `AggregateRating` si des avis existent.
+- [x] **Accessibilité** : lien d'évitement (« Aller au contenu principal ») ajouté dans
+      `app/layout.tsx`. Audit automatisé (axe-core via Playwright, éphémère) sur les pages
+      clés (accueil, boutique, fiche produit, panier, contact, FAQ) : 2 violations réelles
+      trouvées et corrigées — hiérarchie de titres cassée sur `/boutique` (H1 suivi
+      directement d'un H3 dans `ProductCard`, sans H2 intermédiaire : ajout d'un H2
+      `sr-only`), et landmarks `<nav>` non uniques (plusieurs zones de navigation sans nom
+      accessible : `aria-label` ajouté sur la navigation principale et mobile du `Header`, le
+      fil d'ariane de la fiche produit, et la pagination de `/boutique`). Audit rejoué après
+      correction : 0 violation sur les 6 pages testées.
+- [x] **Analytics** : `@vercel/analytics` (composant `<Analytics />` dans `app/layout.tsx`) —
+      cookieless par nature, correspond au choix « Plausible ou Vercel Analytics (sans cookie
+      tiers) » de `CLAUDE.md`. Fonctionne automatiquement une fois déployé sur Vercel, no-op
+      en local.
+- [x] **RGPD** : la page `/confidentialite` mentionnait un bandeau de consentement cookies et
+      des « cookies de mesure d'audience » qui n'existaient pas dans le code. Corrigée pour
+      refléter la réalité technique : seuls des cookies strictement nécessaires (session)
+      sont utilisés, la mesure d'audience est anonymisée et sans cookie (exemptée de
+      consentement selon les recommandations CNIL), donc pas de bandeau cookies affiché —
+      cohérence entre le texte légal et l'implémentation plutôt que l'ajout d'un bandeau
+      superflu.
+- [x] **Testé** : `npm run typecheck`/`lint`/`build` (build de prod confirme la génération
+      statique de `/robots.txt` et `/sitemap.xml`) ; vérifié en local que `/sitemap.xml`
+      liste bien produits/catégories/pages statiques, que `/robots.txt` exclut les bonnes
+      routes, que le JSON-LD et les balises `<title>`/`<meta description>`/OG s'affichent
+      correctement sur une fiche produit réelle, et que `<meta name="robots" content="noindex,
+nofollow">` est bien présent sur une page admin même authentifiée (session admin
+      simulée par JWT signé).
+
+## Fait (Phase 9, 1/3 — tests automatisés)
+
+- [x] **Vitest** (`vitest.config.ts`, environnement `jsdom`, alias `@/*`) : 30 tests
+      unitaires sur la logique pure la plus sensible du projet.
+  - `lib/format.test.ts` : `formatPriceTtc`.
+  - `lib/orders.test.ts` : `returnDeadline`/`isReturnEligible` (délai de rétractation de 14
+    jours), avec horloge simulée (`vi.useFakeTimers`) pour tester les bornes exactement.
+  - `lib/pricing.test.ts` : nouveau module `lib/pricing.ts`, **extrait de
+    `app/api/checkout/route.ts`** pour le rendre testable en isolation — calcul de remise
+    (pourcentage arrondi, montant fixe jamais négatif ni supérieur au sous-total), frais de
+    livraison (seuil d'offre), validité d'un coupon (dates, quota d'usage), et le calcul du
+    total combinant les trois (y compris le cas d'un coupon invalide qui ne doit jamais faire
+    échouer le calcul, et la livraison qui doit rester basée sur le sous-total **avant**
+    remise). `app/api/checkout/route.ts` réécrit pour utiliser ce module au lieu de calculs
+    en ligne, revérifié par un test manuel du endpoint (commande créée avec le bon total,
+    puis correctement supprimée quand l'appel Stripe échoue faute de vraies clés — même
+    garantie qu'avant le refactor).
+  - `hooks/useCart.test.ts` : store Zustand testé directement (`useCart.getState()`), sans
+    rendu React — refus d'ajout à stock nul, cumul de quantité, suppression, mise à jour de
+    quantité (y compris retrait automatique à 0), vidage du panier, sélecteurs de total/count.
+  - `npm test` ajouté aux scripts et à la CI (`.github/workflows/ci.yml`).
+- [x] **Playwright** (`playwright.config.ts`, `tests/e2e/`) : suite E2E désormais **committée
+      dans le dépôt** (contrairement aux scripts Playwright ad hoc utilisés jusqu'ici pour
+      les vérifications ponctuelles en session, toujours installés puis désinstallés).
+      Volontairement limitée aux parcours qui ne dépendent d'aucune API externe
+      (Stripe/Resend indisponibles en CI) :
+  - `navigation.spec.ts` : accueil (héro, familles d'épices), catalogue (liste, filtre
+    catégorie, recherche texte), fiche produit (affichage, 404 sur slug inconnu).
+  - `cart.spec.ts` : ajout au panier depuis la fiche produit (badge du header, tiroir
+    panier), page `/panier` (modification de quantité, retrait d'un article).
+  - `npm run test:e2e` ajouté aux scripts. Nouveau job CI `e2e` avec un vrai service
+    PostgreSQL (migrations + seed réels, pas de placeholder), installation des navigateurs
+    Playwright (`playwright install --with-deps chromium` — cet environnement de session a
+    un Chromium préinstallé à une version différente, `playwright.config.ts` expose donc une
+    option `PLAYWRIGHT_CHROMIUM_EXECUTABLE` pour pointer dessus sans jamais lancer
+    `playwright install` en session), rapport uploadé en artefact en cas d'échec.
+  - **Testé** : les 6 tests passent en local contre le Postgres de session (deux bugs réels
+    trouvés et corrigés dans les tests eux-mêmes en cours d'écriture — sélecteurs `getByRole`
+    ambigus entre le bouton panier du header et le bouton « Ajouter au panier », et entre le
+    nom du produit dans le tiroir et son label de quantité — corrigés avec `exact: true`).
+
+## Fait (Phase 9, 2/3 — sécurité)
+
+- [x] **Faille XSS trouvée et corrigée** : le JSON-LD `Product` ajouté en Phase 8
+      (`app/produits/[slug]/page.tsx`) sérialisait `product.description` sans échappement
+      dans un `dangerouslySetInnerHTML`. Une description contenant littéralement `</script>`
+      aurait pu casser hors de la balise et injecter du JS arbitraire (XSS stocké, exploitable
+      par quiconque peut écrire une description produit). Corrigé en remplaçant tout
+      caractère `<` par sa séquence d'échappement Unicode dans le JSON sérialisé.
+- [x] **En-têtes de sécurité** (`next.config.mjs`, `headers()`, appliqués à toutes les
+      routes) : `Content-Security-Policy`, `X-Content-Type-Options: nosniff`,
+      `X-Frame-Options: DENY` (anti-clickjacking), `Referrer-Policy:
+strict-origin-when-cross-origin`, `Permissions-Policy` (caméra/micro/géoloc désactivés,
+      non utilisés par le site), `Strict-Transport-Security`.
+  - **CSP** : `object-src none`, `frame-ancestors none`, `base-uri self`, `form-action self`
+    apportent une protection réelle immédiate. `script-src`/`style-src` gardent
+    `'unsafe-inline'` (pas de nonce) — un CSP strict à base de nonce demanderait d'étendre le
+    `matcher` du middleware à toutes les routes et de le valider contre un vrai déploiement
+    Vercel ; noté comme durcissement post-lancement plutôt que livré sans pouvoir le tester
+    en conditions réelles.
+  - **Testé** : `npm run build && npm run start` (mode production, pas `next dev` — le mode
+    dev échoue sous cette CSP à cause de `eval()` utilisé par le HMR de webpack, un faux
+    positif propre au dev qui ne se produit pas en production) + Playwright éphémère
+    vérifiant l'absence d'erreur console/page sur les pages clés et **le parcours complet
+    d'ajout au panier fonctionnant toujours sous la CSP** (aucune fonctionnalité cassée).
+- [x] **Revue ciblée** (grep + relecture) : aucun SQL brut (`$queryRaw`/`$executeRaw`,
+      tout passe par le query builder Prisma paramétré), aucun `console.log` (seul
+      `console.error` sur des objets d'erreur génériques, pas de token/donnée sensible),
+      jeton de confirmation newsletter généré via `randomUUID()` (imprévisible), CSRF sur les
+      Server Actions géré nativement par Next.js 14 (vérification de l'en-tête `Origin`), pas
+      de secret commité (`.env.example` ne contient que des placeholders vides).
+- [x] **Constaté, non corrigé — arbitrages documentés plutôt que actions unilatérales** :
+  - `npm audit` : 5 vulnérabilités de niveau élevé, toutes dans Next 14.2.35/postcss/glob ;
+    corrigées seulement par une montée vers Next 16, qui casserait le choix de stack
+    verrouillé dans `CLAUDE.md`.
+  - Pas de rate limiting sur `/api/contact`, `/api/newsletter/subscribe` ni `/connexion` : un
+    limiteur en mémoire serait trompeur (Vercel exécute des fonctions serverless sans état
+    partagé entre instances, donc inefficace en production) ; une vraie protection
+    nécessiterait Vercel Firewall ou un store partagé (Upstash Redis) — décision
+    d'infrastructure pour l'humain, pas quelque chose à simuler ici. Le formulaire de contact
+    a déjà un honeypot (Jour 17).
+  - `next start` (mode production) local échoue avec `UntrustedHost` d'Auth.js — Vercel
+    détecte et fait confiance à l'hôte automatiquement en production (comportement documenté
+    Auth.js v5), donc sans impact sur le déploiement cible ; non corrigé pour éviter
+    d'affaiblir la validation d'hôte (`trustHost: true`) sans besoin réel.
+
+## Fait (Phase 9, 3/3 — préparation au déploiement)
+
+- [x] `package.json` : script `postinstall: prisma generate` ajouté — garantit que le client
+      Prisma est régénéré à chaque install (Vercel), sans dépendre d'un ordre implicite entre
+      install et build.
+- [x] `README.md` : section « Déploiement (Vercel + Supabase) » — connexion poolée vs directe
+      Supabase, ordre des opérations (migrations **avant** mise en ligne, jamais de seed en
+      production), tableau des variables d'environnement requises, configuration du webhook
+      Stripe (URL d'endpoint, événement `checkout.session.completed`), bucket Storage,
+      checklist de vérification post-déploiement. Commandes `test`/`test:e2e` ajoutées au
+      tableau des commandes.
+- [x] **Testé** : `npm install` complet relancé pour confirmer que `postinstall` s'exécute
+      sans erreur ; `build`/`lint`/`typecheck`/`test` rejoués une dernière fois après ce
+      changement.
+- [ ] **Non réalisable dans cet environnement** : la création réelle du projet Vercel, son
+      branchement au dépôt GitHub, et le premier déploiement effectif restent un point de
+      blocage humain (nécessite un compte Vercel et les identifiants Supabase/Stripe/Resend
+      réels listés dans le tableau du README).
+
+**Phase 9 terminée** (tests automatisés, sécurité, préparation au déploiement).
+
+## Fait (Phase 10, partiel — monitoring Sentry)
+
+- [x] `@sentry/nextjs` intégré (App Router, `instrumentation.ts` + `sentry.server.config.ts` /
+      `sentry.edge.config.ts` / `sentry.client.config.ts`) — **sans compte Sentry réel** :
+      sans `SENTRY_DSN`/`NEXT_PUBLIC_SENTRY_DSN`, le SDK s'initialise en no-op silencieux
+      (comportement documenté officiel), donc rien ne casse ni ne part vers un serveur tiers
+      tant que les clés ne sont pas renseignées.
+- [x] `app/error.tsx` et le nouveau `app/global-error.tsx` (boundary racine, capture les
+      erreurs que `error.tsx` ne peut pas intercepter) envoient désormais les erreurs à
+      Sentry via `Sentry.captureException` en plus de l'affichage utilisateur existant.
+- [x] `next.config.mjs` : `withSentryConfig` avec `tunnelRoute: '/monitoring'` — fait
+      transiter les événements par une route interne same-origin plutôt que par le domaine
+      d'ingestion Sentry, pour rester conforme à la CSP `connect-src 'self'` ajoutée en Phase
+      9 sans avoir à l'assouplir. Upload des source maps auto-désactivé sans
+      `SENTRY_ORG`/`SENTRY_PROJECT`/`SENTRY_AUTH_TOKEN` (pas d'échec de build).
+- [x] `.env.example` complété (`SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_ORG`,
+      `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`, tous facultatifs).
+- [x] **Testé** : `build`/`lint`/`typecheck`/tests unitaires rejoués avec succès après
+      intégration ; serveur de dev et **build de production démarrés tous les deux avec
+      succès**, aucune erreur console/page (Playwright éphémère) sur les pages clés — la CSP
+      de la Phase 9 reste intacte, le tunnel `/monitoring` ne nécessite aucune règle
+      supplémentaire. Taille du bundle client partagé constatée en hausse (~87 kB → ~166 kB,
+      middleware ~78 kB → ~147 kB) : coût normal du SDK Sentry, pas un bug.
+- [ ] **Non vérifiable dans cet environnement** : le comportement réel du tunnel
+      `/monitoring` (proxy vers l'API d'ingestion Sentry) ne peut être validé de bout en bout
+      sans un vrai DSN Sentry ; à confirmer dès qu'un compte est créé.
+- [ ] **Non fait, sur décision explicite** : internationalisation EN + multi-devises
+      (next-intl) et les options Algolia/Cloudinary — chantiers plus lourds, explicitement
+      post-lancement, laissés de côté pour cette session (voir échange avec l'utilisateur).
+
+## Fait (Jour 9 rattrapé + gestion admin des produits)
+
+- [x] `lib/slugify.ts` : génération de slug (normalisation Unicode NFD pour retirer les
+      accents, minuscules, tirets).
+- [x] `lib/admin.ts` : `requireAdmin()` mutualisé — était dupliqué à l'identique dans
+      `app/admin/avis/actions.ts` et `app/admin/commandes/actions.ts` ; les deux fichiers
+      importent désormais depuis ce module unique.
+- [x] `lib/supabase-storage.ts` : client Supabase Storage **côté serveur uniquement**
+      (`SUPABASE_SERVICE_ROLE_KEY`, jamais exposée au client), même précaution que
+      Stripe/Resend — valeur de repli sans compte réel pour ne pas casser le build.
+      `uploadProductImage`/`deleteProductImage`, bucket `product-images`.
+- [x] `prisma/schema.prisma` : `ProductImage.path` ajouté (nécessaire pour supprimer l'objet
+      Storage correspondant à la suppression d'une image) — migration
+      `20260813131524_product_image_path`.
+- [x] `app/admin/produits/` (nouveau, comblant un vrai manque — seuls `admin/avis` et
+      `admin/commandes` existaient) : liste des produits, création (produit + première
+      variante obligatoire dans un seul formulaire), édition (infos produit, variantes
+      — ajout/modification/suppression —, images — envoi/suppression —, suppression du
+      produit). Toutes les Server Actions dans `app/admin/produits/actions.ts` :
+      validation Zod systématique (prix saisis en euros côté formulaire, convertis et
+      stockés en centimes côté serveur, jamais acceptés tels quels), slug unique généré et
+      vérifié en base, protection `P2003` (suppression impossible si commandes associées →
+      message explicite plutôt qu'une erreur Prisma brute), `requireAdmin()` sur chaque
+      action.
+- [x] `.env.example` / `README.md` : variables `NEXT_PUBLIC_SUPABASE_URL` /
+      `SUPABASE_SERVICE_ROLE_KEY` documentées, section bucket Storage précisée (nom exact
+      `product-images`).
+- [x] **Détour de debug important, pour mémoire** : une longue investigation a d'abord fait
+      croire à une régression du framework (une Server Action `createProduct` semblait
+      systématiquement redirigée vers `/` sans jamais s'exécuter, sous `/admin/*`
+      uniquement). Après isolation méthodique (pages de test minimales, inspection du
+      `server-reference-manifest.js` compilé), la cause réelle s'est révélée être un
+      script de test Playwright utilisant un sélecteur ambigu
+      (`page.click('button[type="submit"]')`), qui cliquait en réalité sur le bouton
+      « Déconnexion » du `Header` (présent sur chaque page, avant le formulaire ciblé dans
+      l'ordre du DOM) au lieu du bouton du formulaire testé — un bug de test, pas
+      d'application. Toutes les « corrections » explorées entre-temps (retrait de `auth()`
+      dans le layout admin, contournements client-side du `redirect()`) ont été annulées ;
+      le code final utilise le pattern standard déjà en place ailleurs dans le projet
+      (`<form action={serverAction}>` + `redirect()` côté serveur).
+- [x] **Testé de bout en bout** (Postgres local, session JWT admin signée manuellement,
+      Playwright éphémère) : liste, création d'un produit (avec sa première variante),
+      ajout d'une variante, modification du produit, suppression d'une variante,
+      suppression du produit (retour à la liste) — flux complet confirmé fonctionnel de
+      bout en bout dans un seul scénario. `typecheck`/`lint`/`test` (30 tests) rejoués sans
+      régression, `build` de production généré avec succès (routes `/admin/produits*`
+      présentes), suite E2E (6 tests) rejouée en mode `CI=true` (build + `next start`,
+      identique à la CI GitHub Actions) : 6/6 passent — les échecs observés en mode
+      `next dev` local sont le flake d'hydratation déjà documenté en Phase 9 (non lié à ce
+      changement, confirmé non reproductible sous le mode utilisé réellement par la CI).
+- [ ] **Non testable dans cet environnement** : l'envoi réel vers Supabase Storage
+      (nécessite un bucket `product-images` et des identifiants réels) — le formulaire
+      d'envoi d'image a été exercé (requête traitée sans crash côté serveur), mais le
+      succès effectif du transfert ne peut être confirmé sans compte réel.
+
+## Fait (tableau de bord admin)
+
+- [x] `app/admin/page.tsx` (nouveau) : `/admin` n'avait pas de page racine — accès direct en
+      404, contrairement à `/compte` qui redirige vers ses commandes. Ajoute 4 indicateurs
+      (commandes `PAID` à traiter, retours `RETURN_REQUESTED`, avis `PENDING` à modérer,
+      produits dont toutes les variantes sont à stock 0), chacun lié à sa section, mis en
+      évidence en couleur terracotta si non nul. Lien « Tableau de bord » ajouté en tête de
+      la nav admin (`app/admin/layout.tsx`).
+- [x] **Testé de bout en bout** (Postgres local, session JWT admin, Playwright éphémère) :
+      capture d'écran avec les 4 compteurs à 0, puis données de test créées directement en
+      base (une commande `PAID`, une `RETURN_REQUESTED`, un avis `PENDING`, un produit
+      remis temporairement à stock 0 sur toutes ses variantes) — les 4 compteurs passent
+      bien à 1 et la mise en forme terracotta s'affiche ; accès non authentifié à `/admin`
+      confirmé redirigé (307, middleware). Données de test nettoyées après vérification.
+      `typecheck`/`lint`/`test`/`build` rejoués sans régression.
+
+## Fait (gestion admin des coupons)
+
+- [x] **Gap identifié** : les coupons (`Coupon`) n'étaient créables que via `prisma/seed.ts`
+      (un seul, `BIENVENUE10`, codé en dur) — interdit en production par `CLAUDE.md`, donc
+      aucun moyen réel pour la boutique de créer/ajuster un code promo une fois déployée.
+- [x] `lib/money.ts` (nouveau) : `eurosToCentsSchema` extrait de
+      `app/admin/produits/actions.ts` (désormais importé depuis là, sans duplication) — motif
+      identique à `lib/admin.ts` plus tôt dans la session.
+- [x] `lib/pricing.ts` : nouveau `couponStatus()`/`couponStatusLabels` (Actif / Pas encore
+      actif / Expiré / Épuisé), plus fin que le simple booléen `isCouponValid` déjà existant,
+      pour l'affichage admin. 5 nouveaux tests Vitest (`lib/pricing.test.ts`, 35 tests au
+      total désormais).
+- [x] `app/admin/coupons/` (nouveau) : liste (statut, valeur formatée, compteur d'usage),
+      création (code, type pourcentage/montant fixe, dates de validité, quota facultatif —
+      unicité du code gérée en base, message clair sur doublon plutôt que l'erreur Prisma
+      brute), modification (date de fin / quota max, les seuls champs qu'on ajuste
+      réalistement après coup), désactivation immédiate (fixe `validUntil` à maintenant, sans
+      supprimer l'historique), suppression (bloquée avec message explicite si des commandes y
+      sont déjà associées — même garde `P2003` que produits/variantes). Lien « Coupons »
+      ajouté à la nav admin.
+- [x] **Testé de bout en bout** (Postgres local, session JWT admin, Playwright éphémère) :
+      création d'un coupon pourcentage et d'un coupon montant fixe (code mis en majuscules,
+      valeurs correctement formatées, statut « Actif » affiché), tentative de code dupliqué
+      → message d'erreur propre (pas de crash), modification du quota d'utilisation,
+      désactivation (passage à « Expiré »), suppression des deux coupons de test — le coupon
+      réel du seed (`BIENVENUE10`) resté intact tout du long (vérifié). Accès non
+      authentifié confirmé redirigé (307). `typecheck`/`lint`/`test` (35/35)/`build` rejoués
+      sans régression.
+
+## Fait (gestion admin des catégories)
+
+- [x] **Gap identifié, confirmé avec l'utilisateur** : les 7 catégories n'étaient modifiables
+      que via `prisma/seed.ts` (interdit en production). Question posée explicitement sur la
+      suite de la feuille de route (tout jusqu'au bout vs. petits restes seulement) —
+      l'utilisateur a choisi de laisser l'i18n EN/multi-devises et Algolia/Cloudinary de côté
+      (post-lancement, comme prévu dans `CLAUDE.md`) et de ne faire que ce dernier morceau de
+      développement pur.
+- [x] `lib/slugify.ts` : `uniqueSlug(base, isTaken)` extrait de
+      `app/admin/produits/actions.ts` (désormais généralisé, plus seulement pour les
+      produits) — même motif d'extraction que `lib/admin.ts`/`lib/money.ts` plus tôt dans la
+      session.
+- [x] `app/admin/categories/` (nouveau) : liste (nombre de produits par catégorie),
+      création (slug généré automatiquement, unique), modification (nom/description — le
+      slug reste volontairement fixe après création pour ne pas casser les liens/SEO),
+      suppression protégée si des produits y sont encore rattachés (garde `P2003`, même motif
+      que produits/variantes/coupons). Lien « Catégories » ajouté à la nav admin.
+- [x] **Testé de bout en bout** (Postgres local, session JWT admin, Playwright éphémère) :
+      création (slug correct, accents retirés), renommage (slug stable), collision de slug
+      (suffixe `-2` ajouté automatiquement), suppression d'une catégorie vide (réussit),
+      tentative de suppression d'une catégorie avec produits (Cannelle, 5 produits) — **le
+      log serveur confirme que la garde `P2003` lève bien le message attendu et qu'aucune
+      mutation n'a lieu** (catégorie toujours présente en base après coup), comportement
+      identique à celui déjà établi pour produits/variantes/coupons. `typecheck`/`lint`/
+      `test` (35/35)/`build` rejoués sans régression. Les 7 catégories du seed vérifiées
+      intactes après nettoyage des données de test.
+
+## Fait (écarts réels trouvés par comparaison au plan d'exécution original)
+
+L'utilisateur a fourni le document de plan original (jamais commité au dépôt, seulement
+suivi via `PROGRESS.md` jusqu'ici). Une comparaison ligne à ligne (`grep` sur le code réel,
+pas seulement relecture de `PROGRESS.md`) a révélé 4 tâches du plan jamais faites, sans raison
+valable — corrigées dans la foulée :
+
+- [x] **Jour 1 — fiche de cadrage produit** : n'existait pas. `docs/cadrage-produit.md`
+      (nouveau) : les 7 familles de produits, positionnement, marché cible, devise, et un
+      rappel du mécanisme TVA/OSS pour la vente à distance UE (avec avertissement explicite :
+      à faire vérifier par un comptable, ce n'est pas un conseil fiscal).
+- [x] **Jour 23 — JSON-LD `Organization` et `BreadcrumbList`** : seul `Product` avait été
+      fait. `Organization` ajouté site-wide dans `app/layout.tsx`. `BreadcrumbList` ajouté sur
+      la fiche produit (`app/produits/[slug]/page.tsx`), en cohérence avec le fil d'Ariane
+      **visible** (un maillon « Accueil » a été ajouté au fil d'Ariane visible en même temps,
+      pour que les données structurées reflètent exactement ce que l'utilisateur voit —
+      recommandation Google).
+- [x] **Checklist Phase 8 — Lighthouse ≥ 90** : jamais mesuré jusqu'ici (seul un audit
+      d'accessibilité axe-core avait été fait). Lighthouse exécuté réellement (installation
+      éphémère, `npm uninstall` ensuite, contre un `next build && next start` réel) sur 4
+      pages clés :
+  - Accueil : performance 90, accessibilité 96, bonnes pratiques 96, SEO 100.
+  - Boutique, fiche produit, panier : performance 98, accessibilité 96, bonnes pratiques 96,
+    SEO 100 — **sauf panier, SEO 63**, dont la seule cause est l'audit `is-crawlable`
+    (bloqué de l'indexation) : **attendu et voulu**, `/panier` est volontairement `noindex`
+    depuis la Phase 8 (page privée, sans intérêt SEO). Pas un défaut réel.
+  - Bilan honnête : toutes les pages testées passent bien la barre des 90 sur les critères qui
+    s'appliquent réellement à des pages publiques ; le seul score sous 90 s'explique
+    entièrement par une décision produit assumée, pas par un manque de qualité.
+- [x] **Jour 28 — `.env.production.example`** : n'existait pas comme fichier séparé de
+      `.env.example` (le contenu équivalent était dilué dans le tableau du README). Créé,
+      avec les différences propres à la production explicitement notées en tête de fichier
+      (clés Stripe live, domaine réel, domaine Resend vérifié).
+
+## Fait (les 3 divergences restantes, tranchées avec l'utilisateur)
+
+- [x] **Bannière de consentement cookies RGPD (Jour 25) — question posée explicitement à
+      l'utilisateur**, qui a confirmé garder la décision existante : **pas de bannière**.
+      `@vercel/analytics` est sans cookie et exempté de consentement (recommandation CNIL) ;
+      construire une bascule "analytics" qui n'aurait aucun effet réel aurait été trompeur
+      pour l'utilisateur final. La page `/confidentialite` mentionne déjà clairement
+      l'absence de cookie non essentiel. Décision définitivement close, ce n'est plus un
+      écart au plan mais un choix produit assumé et validé.
+- [x] **Rate limiting Upstash sur `/api/checkout` et `/api/contact` (Jour 27) — implémenté.**
+      `lib/rate-limit.ts` (nouveau) : suit le même motif de repli déjà établi pour
+      Stripe/Resend/Supabase Storage (client réel si les identifiants Upstash sont
+      configurés), mais **fail-open** plutôt que fail-avec-clé-factice — sans
+      `UPSTASH_REDIS_REST_URL`/`TOKEN`, la limitation est simplement désactivée, pour ne
+      jamais bloquer tout le monde faute de config (contrairement à Stripe où un appel avec
+      une clé factice échoue proprement par requête, une limitation de débit désactivée doit
+      laisser passer, pas hanger/planter). Fenêtre glissante : 10 requêtes/min sur checkout
+      (plus permissif, un paiement refusé peut être relancé), 3 requêtes/10 min sur contact
+      (plus strict, cible fréquente de spam en plus du honeypot déjà en place). 4 nouveaux
+      tests Vitest (`lib/rate-limit.test.ts` : extraction d'IP depuis `x-forwarded-for`,
+      comportement fail-open vérifié en environnement de test sans Upstash configuré — 39
+      tests au total). **Testé** : `POST /api/checkout` et `/api/contact` contre le serveur
+      de dev local (sans Upstash réel) — les deux passent bien le contrôle de débit
+      (fail-open confirmé) et atteignent leur logique métier normale, aucune régression.
+      `UPSTASH_REDIS_REST_URL`/`TOKEN` documentées dans `.env.example`,
+      `.env.production.example` et le tableau du README.
+- [x] **Routes API dédiées vs Server Actions (Jour 9, Jour 22) — tranché sans reconstruire.**
+      Décision de garder les Server Actions existantes (`uploadImage`,
+      `app/admin/produits/actions.ts` ; `requestReturn`,
+      `app/compte/commandes/actions.ts`) plutôt que d'ajouter des routes REST dédiées
+      dupliquant la même logique : convertir aurait introduit une incohérence avec le reste
+      du projet (**toutes** les mutations admin/compte utilisent des Server Actions, aucune
+      route API dédiée n'existe pour une mutation ailleurs dans le code), sans bénéfice
+      fonctionnel réel (pas de client externe au site Next.js qui aurait besoin d'un
+      endpoint REST séparé), et irait à l'encontre de la règle `CLAUDE.md` contre les
+      abstractions/refactors sans besoin réel. Fonctionnellement équivalent au plan
+      (protection par rôle admin, validation Zod, mêmes garanties), juste une structure de
+      fichiers différente.
+
+Avec ces 3 décisions tranchées, les 7 écarts identifiés par comparaison au plan d'exécution
+original sont tous clos (4 corrigés tels quels, 3 tranchés explicitement avec l'utilisateur
+sur le fond plutôt que rebâtis mécaniquement).
+
 ## À faire ensuite
 
-- [ ] Jour 9 : upload Supabase Storage — toujours **bloqué** sans compte Supabase réel
-      (bucket + policies à créer par l'humain) ; le code peut être écrit (route protégée par
-      le rôle admin, disponible depuis le Jour 10) mais pas testé.
-- [ ] Phase 7 : droit de rétractation / remboursements (email `RefundConfirmationEmail.tsx`
-      déjà prêt depuis le Jour 20, reste à écrire le flux admin de traitement d'un retour).
-- [ ] Phase 8 : SEO/perf/a11y/RGPD/analytics.
+- [ ] Upload Supabase Storage : code écrit et exercé, mais le succès réel du transfert
+      reste **bloqué** sans compte Supabase réel (bucket `product-images` + policies à
+      créer par l'humain, voir README).
+- [ ] Phase 10, reste : EN + multi-devises (next-intl, restructuration importante de toutes
+      les pages), Algolia en option, Cloudinary en option — **volontairement laissés de côté**
+      (décision explicite de l'utilisateur, post-lancement comme prévu dans `CLAUDE.md`). Ceci
+      clôt la partie développement pur de la feuille de route pour cette session : tout ce qui
+      reste nécessite soit des comptes tiers réels, soit une validation humaine (voir
+      ci-dessous).
 - [ ] **Validation humaine requise** : relecture visuelle de l'ensemble du parcours (Phase 5
       cochée dans la check-list), relecture du schéma Prisma + données de seed, relecture
       juridique des pages CGV/mentions légales/confidentialité (bandeau d'avertissement déjà
@@ -427,4 +861,4 @@ produit → panier → contact/FAQ/erreurs, sans erreur, stock épuisé géré v
   ce domaine est explicitement souhaité.
 - Conformité étiquetage/sanitaire UE pour l'import/vente d'épices alimentaires (ouvert dès
   Phase 0, doit être résolu avant tout lancement commercial réel).
-- Comptes tiers (Stripe, Vercel, Supabase, domaine) à créer par l'humain.
+- Comptes tiers (Stripe, Vercel, Supabase, domaine, Sentry) à créer par l'humain.

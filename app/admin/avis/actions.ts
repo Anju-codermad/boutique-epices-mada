@@ -2,15 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 
-import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
-
-async function requireAdmin() {
-  const session = await auth();
-  if (session?.user?.role !== 'ADMIN') {
-    throw new Error('Accès refusé');
-  }
-}
+import { requireAdmin } from '@/lib/admin';
 
 export async function approveReview(reviewId: string) {
   await requireAdmin();

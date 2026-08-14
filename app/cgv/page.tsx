@@ -3,7 +3,9 @@ import type { Metadata } from 'next';
 import { LegalReviewNotice } from '@/components/shared/LegalReviewNotice';
 
 export const metadata: Metadata = {
-  title: "Conditions générales de vente — Boutique d'épices de Madagascar",
+  title: 'Conditions générales de vente',
+  description:
+    "Conditions générales de vente de la Boutique d'épices de Madagascar : commande, livraison, droit de rétractation, garanties.",
 };
 
 export default function CgvPage() {
