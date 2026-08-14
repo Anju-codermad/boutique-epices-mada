@@ -72,6 +72,7 @@ Toutes les variables listées dans `.env.example` doivent être renseignées en 
 | `STRIPE_WEBHOOK_SECRET`         | Voir étape 3 ci-dessous                                                                         |
 | `NEXT_PUBLIC_SUPABASE_URL`      | Supabase → Project Settings → API                                                               |
 | `SUPABASE_SERVICE_ROLE_KEY`     | Supabase → Project Settings → API (clé `service_role`, secrète)                                 |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | Compte Upstash (facultatif : sans ces variables, la limitation de débit sur `/api/checkout` et `/api/contact` est simplement désactivée) |
 
 ### 3. Webhook Stripe
 

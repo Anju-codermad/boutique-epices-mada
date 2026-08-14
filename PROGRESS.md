@@ -786,19 +786,48 @@ valable — corrigées dans la foulée :
       avec les différences propres à la production explicitement notées en tête de fichier
       (clés Stripe live, domaine réel, domaine Resend vérifié).
 
-**Écarts documentés mais non corrigés dans cette passe** (décisions déjà prises et justifiées
-sur le fond, mais qui restent des divergences par rapport au texte du plan — à trancher
-explicitement avec l'utilisateur avant de les considérer clos) :
-- Bannière de consentement cookies RGPD (Jour 25) — non construite, `@vercel/analytics` étant
-  sans cookie (donc rien à consentir), voir section Phase 8 plus haut.
-- Rate limiting Upstash sur `/api/checkout` et `/api/contact` (Jour 27) — non fait, nécessite
-  un compte Upstash réel, voir section Phase 9 (2/3) plus haut.
-- Routes API dédiées `app/api/upload/route.ts` (Jour 9) et `app/api/orders/[id]/return/route.ts`
-  (Jour 22) — implémentées comme Server Actions (`uploadImage` dans
-  `app/admin/produits/actions.ts`, `requestReturn` dans `app/compte/commandes/actions.ts`)
-  plutôt que comme routes REST dédiées. Fonctionnellement équivalent et cohérent avec le
-  reste des mutations admin/compte du projet (toutes en Server Actions), mais diverge de la
-  structure exacte demandée par le plan.
+## Fait (les 3 divergences restantes, tranchées avec l'utilisateur)
+
+- [x] **Bannière de consentement cookies RGPD (Jour 25) — question posée explicitement à
+      l'utilisateur**, qui a confirmé garder la décision existante : **pas de bannière**.
+      `@vercel/analytics` est sans cookie et exempté de consentement (recommandation CNIL) ;
+      construire une bascule "analytics" qui n'aurait aucun effet réel aurait été trompeur
+      pour l'utilisateur final. La page `/confidentialite` mentionne déjà clairement
+      l'absence de cookie non essentiel. Décision définitivement close, ce n'est plus un
+      écart au plan mais un choix produit assumé et validé.
+- [x] **Rate limiting Upstash sur `/api/checkout` et `/api/contact` (Jour 27) — implémenté.**
+      `lib/rate-limit.ts` (nouveau) : suit le même motif de repli déjà établi pour
+      Stripe/Resend/Supabase Storage (client réel si les identifiants Upstash sont
+      configurés), mais **fail-open** plutôt que fail-avec-clé-factice — sans
+      `UPSTASH_REDIS_REST_URL`/`TOKEN`, la limitation est simplement désactivée, pour ne
+      jamais bloquer tout le monde faute de config (contrairement à Stripe où un appel avec
+      une clé factice échoue proprement par requête, une limitation de débit désactivée doit
+      laisser passer, pas hanger/planter). Fenêtre glissante : 10 requêtes/min sur checkout
+      (plus permissif, un paiement refusé peut être relancé), 3 requêtes/10 min sur contact
+      (plus strict, cible fréquente de spam en plus du honeypot déjà en place). 4 nouveaux
+      tests Vitest (`lib/rate-limit.test.ts` : extraction d'IP depuis `x-forwarded-for`,
+      comportement fail-open vérifié en environnement de test sans Upstash configuré — 39
+      tests au total). **Testé** : `POST /api/checkout` et `/api/contact` contre le serveur
+      de dev local (sans Upstash réel) — les deux passent bien le contrôle de débit
+      (fail-open confirmé) et atteignent leur logique métier normale, aucune régression.
+      `UPSTASH_REDIS_REST_URL`/`TOKEN` documentées dans `.env.example`,
+      `.env.production.example` et le tableau du README.
+- [x] **Routes API dédiées vs Server Actions (Jour 9, Jour 22) — tranché sans reconstruire.**
+      Décision de garder les Server Actions existantes (`uploadImage`,
+      `app/admin/produits/actions.ts` ; `requestReturn`,
+      `app/compte/commandes/actions.ts`) plutôt que d'ajouter des routes REST dédiées
+      dupliquant la même logique : convertir aurait introduit une incohérence avec le reste
+      du projet (**toutes** les mutations admin/compte utilisent des Server Actions, aucune
+      route API dédiée n'existe pour une mutation ailleurs dans le code), sans bénéfice
+      fonctionnel réel (pas de client externe au site Next.js qui aurait besoin d'un
+      endpoint REST séparé), et irait à l'encontre de la règle `CLAUDE.md` contre les
+      abstractions/refactors sans besoin réel. Fonctionnellement équivalent au plan
+      (protection par rôle admin, validation Zod, mêmes garanties), juste une structure de
+      fichiers différente.
+
+Avec ces 3 décisions tranchées, les 7 écarts identifiés par comparaison au plan d'exécution
+original sont tous clos (4 corrigés tels quels, 3 tranchés explicitement avec l'utilisateur
+sur le fond plutôt que rebâtis mécaniquement).
 
 ## À faire ensuite
 

@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { ALLOWED_SHIPPING_COUNTRIES, stripe } from '@/lib/stripe';
 import { getAppUrl } from '@/lib/url';
 import { computeDiscountCents, computeShippingCents, isCouponValid } from '@/lib/pricing';
+import { checkCheckoutRateLimit, clientIdentifier } from '@/lib/rate-limit';
 
 const checkoutSchema = z.object({
   items: z
@@ -20,6 +21,14 @@ const checkoutSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const allowed = await checkCheckoutRateLimit(clientIdentifier(request));
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Trop de tentatives, réessayez dans quelques instants.' },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = checkoutSchema.safeParse(body);
 
