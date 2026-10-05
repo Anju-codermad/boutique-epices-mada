@@ -20,6 +20,11 @@ réelles (bucket/credentials réels requis), Phase 10 (post-lancement, hors moni
 et l'ensemble des validations humaines listées ci-dessous (comptes tiers, relectures
 juridiques) — voir le détail jour par jour plus bas.
 
+**Mise à jour (session migration Cloudflare)** : décision utilisateur explicite de
+remplacer Vercel par **Cloudflare Workers** comme hébergement (voir section dédiée
+ci-dessous), ce qui a entraîné la mise à jour vers **Next.js 15** et le remplacement de
+Vercel Analytics par Plausible. Le stack technique de `CLAUDE.md` est à jour.
+
 ## Fait
 
 - [x] `CLAUDE.md` créé (stack, palette, structure de dossiers, règles impératives).
@@ -829,6 +834,91 @@ Avec ces 3 décisions tranchées, les 7 écarts identifiés par comparaison au p
 original sont tous clos (4 corrigés tels quels, 3 tranchés explicitement avec l'utilisateur
 sur le fond plutôt que rebâtis mécaniquement).
 
+## Fait (migration Cloudflare Workers + Next.js 15)
+
+Décision utilisateur explicite : remplacer Vercel par **Cloudflare Workers** comme
+hébergement (`Remplacer Vercel par Cloudflare Pages/Workers`, confirmé face à l'option de
+rester sur Vercel), à la suite d'une demande de pouvoir voir le site dans un navigateur via
+un lien Cloudflare (Cloudflare Tunnel s'est avéré bloqué par la politique réseau de
+l'environnement d'exécution — domaines `*.trycloudflare.com`/`api.cloudflare.com`
+inaccessibles — d'où la bascule vers un hébergement Workers réel plutôt qu'un tunnel de dev).
+
+- [x] **Next.js 14 → 15.5.27** — requis par l'adaptateur `@opennextjs/cloudflare`
+      (`next >=15.5.27`), décision utilisateur explicite face à l'alternative (adaptateur
+      ancien non maintenu, ou abandon de Cloudflare). Migration via le codemod officiel
+      `@next/codemod next-async-request-api` (8 routes : `params`/`searchParams` désormais
+      `Promise<T>`). `typecheck`, `lint`, tests Vitest et Playwright tous vérifiés après
+      coup, aucune régression.
+- [x] **Prisma via driver adapter (`@prisma/adapter-pg`) + moteur wasm** (`engineType =
+      "client"` dans `prisma/schema.prisma`) plutôt que le moteur de requête natif (binaire
+      Rust), qui ne peut pas s'exécuter dans le runtime Workers (pas de process natif, pas
+      de compilation WASM dynamique — `WebAssembly.compile()` est explicitement interdit
+      par l'embedder Workers). Diagnostic en plusieurs étapes, documenté dans `lib/prisma.ts`
+      et `next.config.mjs` :
+  - webpack (le build Next.js lui-même) ne doit pas toucher à Prisma : un
+    `serverExternalPackages: ['@prisma/client']` plus un externe webpack explicite sur
+    `.prisma/client/wasm.js` (son nom de package généré est un hash, jamais reconnu par
+    une entrée `serverExternalPackages` littérale) évitent le bug de webpack où le fichier
+    `.wasm` était écrit à un chemin différent de celui attendu par le code généré.
+  - `lib/prisma.ts` importe explicitement le point d'entrée `wasm.js` du client généré
+    (plutôt que `@prisma/client`, dont la résolution ambiguë par condition d'exports fait
+    que les outils de bundling externalisés récupèrent par défaut `index.js`, l'entrée
+    Node qui charge le moteur via `WebAssembly.compile()` dynamique — interdit par
+    Workers). Activé via `BUILD_TARGET=cloudflare` (défini dans `wrangler.jsonc`).
+- [x] **Connexions Postgres bloquées sous Cloudflare Workers, résolu via Hyperdrive.**
+      Une fois le chargement wasm corrigé, la première requête de chaque isolate Workers
+      réussissait, mais **toute requête suivante restait bloquée** jusqu'à l'annulation par
+      le watchdog du runtime (`"Workers runtime canceled this request because [...] had
+      hung"`) — cause : Cloudflare Workers interdit explicitement de réutiliser une
+      connexion (socket `pg.Pool`) ouverte lors d'une requête précédente. Un client Prisma
+      singleton (correct et nécessaire en local) provoque donc ce blocage systématique dès
+      la deuxième requête dans le runtime Workers. Résolu avec l'option "Cloudflare
+      Hyperdrive (recommandé)" choisie explicitement par l'utilisateur face à l'alternative
+      d'un client par requête sans Hyperdrive (plus lent, plus de connexions simultanées) :
+      `lib/prisma.ts` crée désormais, côté Cloudflare uniquement, un client Prisma neuf à
+      chaque accès à une propriété du client (via un `Proxy`), lisant
+      `env.HYPERDRIVE.connectionString` par requête — bon marché puisque la connexion
+      lourde vers Supabase est gérée par Hyperdrive (pool de connexions à la périphérie,
+      hors de l'isolate) plutôt que par le Worker. Le chemin Node (local) garde le
+      singleton global, inchangé.
+- [x] **Remplacement de `@vercel/analytics` par Plausible** — Vercel Analytics ne collecte
+      des données que déployé sur Vercel (confirmé par le 404 de
+      `/_vercel/insights/script.js` observé en local et sous `wrangler dev`), ce qui n'a
+      plus de sens avec l'hébergement Cloudflare. Script brut injecté dans
+      `app/layout.tsx`, actif uniquement si `NEXT_PUBLIC_PLAUSIBLE_DOMAIN` est défini (même
+      principe que Sentry sans DSN) ; CSP mise à jour (`plausible.io` sur
+      `script-src`/`connect-src`).
+- [x] **Vérifié dans `wrangler dev`** (runtime Workers réel en local, pas juste un build qui
+      réussit) : 7 requêtes consécutives sur `/`, `/boutique` (avec et sans filtres),
+      `/produits/[slug]`, `/panier`, `/contact`, `/connexion`, `/api/products`,
+      `/api/products/[slug]` et `/sitemap.xml` renvoient toutes 200 avec de vraies données
+      Supabase (local, voir ci-dessous) — là où la deuxième requête restait auparavant
+      bloquée systématiquement. `/admin` redirige correctement (307, non authentifié).
+      Suite de vérification complète (`typecheck`, `lint`, 39 tests Vitest, 6 tests
+      Playwright E2E, build de production) repassée après chaque changement, aucune
+      régression sur le chemin Node/local.
+
+**Limitations connues, non résolues dans cette session** (nécessitent un accès à un vrai
+compte Cloudflare, indisponible depuis cet environnement d'exécution) :
+
+- Le binding Hyperdrive dans `wrangler.jsonc` utilise un `id` **placeholder** — avant tout
+  déploiement réel, le remplacer par celui d'une vraie configuration Hyperdrive, créée via
+  `npx wrangler hyperdrive create boutique-epices-mada --connection-string="<DATABASE_URL
+  Supabase>"` (voir README, section Déploiement).
+- Le bucket R2 du cache incrémental (ISR) n'a jamais été créé pour de vrai (`npx wrangler
+  r2 bucket create boutique-epices-mada-opennext-cache` — nécessaire avant le premier
+  déploiement réel).
+- Tout le testing ci-dessus a été fait contre un Postgres local (celui utilisé pour tout le
+  développement de cette session faute d'identifiants Supabase réels), pas contre la vraie
+  base Supabase — à revalider une fois les vrais identifiants disponibles.
+- Routes non testées dans cette session au-delà de la vérification de code retour HTTP :
+  flux Stripe complet (`/api/checkout`, webhook), formulaires avec soumission réelle
+  (contact, newsletter), pages admin authentifiées (produits, commandes, avis, coupons,
+  catégories).
+- `next/image` reste non optimisé côté serveur sous Cloudflare (`images.unoptimized: true`)
+  — le binding Cloudflare Images le permettrait, mais dépend du plan Cloudflare du compte
+  (non vérifiable depuis cet environnement).
+
 ## À faire ensuite
 
 - [ ] Upload Supabase Storage : code écrit et exercé, mais le succès réel du transfert
@@ -861,4 +951,11 @@ sur le fond plutôt que rebâtis mécaniquement).
   ce domaine est explicitement souhaité.
 - Conformité étiquetage/sanitaire UE pour l'import/vente d'épices alimentaires (ouvert dès
   Phase 0, doit être résolu avant tout lancement commercial réel).
-- Comptes tiers (Stripe, Vercel, Supabase, domaine, Sentry) à créer par l'humain.
+- Comptes tiers (Stripe, Cloudflare, Supabase, domaine, Sentry, Plausible) à créer par
+  l'humain.
+- **Compte Cloudflare réel requis** pour finaliser le déploiement : créer la configuration
+  Hyperdrive (`npx wrangler hyperdrive create ...`) et le bucket R2 du cache incrémental
+  (`npx wrangler r2 bucket create ...`), puis remplacer l'`id` Hyperdrive placeholder dans
+  `wrangler.jsonc` — voir la section "Limitations connues" ci-dessus et le README. Aucune
+  de ces actions n'est faisable depuis cet environnement d'exécution (pas d'accès à un
+  compte Cloudflare authentifié).
