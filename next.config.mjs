@@ -56,6 +56,21 @@ const nextConfig = {
   // lib/prisma.ts). Tenter de laisser webpack le bundler lui-même menait à une incohérence de
   // chemin entre où le fichier .wasm était écrit et où le code généré le cherchait.
   serverExternalPackages: ['@prisma/client'],
+  webpack: (config, { isServer }) => {
+    // `.prisma/client` a un nom de package généré (hash), qui ne correspond jamais à une
+    // entrée `serverExternalPackages` littérale : on externalise donc explicitement la
+    // requête exacte importée par lib/prisma.ts (voir son commentaire). Au-delà de ce point
+    // précis, toute la résolution (import conditionnel `#wasm-compiler-loader`, import
+    // statique du .wasm) se fait nativement par Node/esbuild selon l'environnement cible,
+    // sans que webpack n'ait besoin de comprendre le wasm lui-même.
+    if (isServer) {
+      config.externals = [
+        ...(Array.isArray(config.externals) ? config.externals : [config.externals].filter(Boolean)),
+        '.prisma/client/wasm.js',
+      ];
+    }
+    return config;
+  },
 };
 
 // Sans SENTRY_ORG/SENTRY_PROJECT/SENTRY_AUTH_TOKEN (aucun compte Sentry réel pour l'instant),

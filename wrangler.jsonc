@@ -4,6 +4,12 @@
 	"name": "boutique-epices-mada",
 	"compatibility_date": "2026-10-05",
 	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"vars": {
+		// Indique à lib/prisma.ts d'utiliser le point d'entrée Prisma "workerd" (moteur wasm,
+		// import statique) plutôt que le point d'entrée Node par défaut (moteur wasm chargé
+		// par WebAssembly.compile() dynamique, interdit dans le runtime Workers).
+		"BUILD_TARGET": "cloudflare"
+	},
 	"assets": {
 		"directory": ".open-next/assets",
 		"binding": "ASSETS"
