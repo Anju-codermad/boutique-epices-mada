@@ -1,11 +1,18 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import type { Metadata } from 'next';
 
 import { ClearCartOnMount } from '@/components/shared/ClearCartOnMount';
 import { buttonVariants } from '@/components/ui/Button';
 import { prisma } from '@/lib/prisma';
 import { formatPriceTtc } from '@/lib/format';
 import { orderStatusLabels } from '@/lib/orders';
+import { NOINDEX_ROBOTS } from '@/lib/seo';
+
+export const metadata: Metadata = {
+  title: 'Confirmation de commande',
+  robots: NOINDEX_ROBOTS,
+};
 
 export default async function ConfirmationCommandePage({
   searchParams,

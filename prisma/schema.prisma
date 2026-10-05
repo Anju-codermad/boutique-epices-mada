@@ -1,5 +1,12 @@
+// Driver adapters (voir lib/prisma.ts) : le moteur de requête natif (binaire Rust) ne peut
+// pas s'exécuter dans le runtime Cloudflare Workers (pas de process natif). Stable depuis
+// cette version de Prisma, plus besoin de previewFeatures.
+// engineType "client" : moteur 100% TypeScript (le "query compiler"), sans binaire natif ni
+// compilation WASM à l'exécution (Workers interdit WebAssembly.compile() dynamique) —
+// nécessaire en plus de l'adaptateur pour tourner dans ce runtime.
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
@@ -134,10 +141,13 @@ model Variant {
 }
 
 model ProductImage {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   url      String
+  // Chemin de l'objet dans le bucket Supabase Storage (nécessaire pour le supprimer) ;
+  // optionnel car les images de seed n'ont pas été uploadées via Storage.
+  path     String?
   alt      String
-  position Int    @default(0)
+  position Int     @default(0)
 
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -239,7 +249,12 @@ model Order {
   trackingNumber String?
   carrier        String?
 
-  stripeSessionId String? @unique
+  stripeSessionId       String? @unique
+  stripePaymentIntentId String?
+
+  // Renseignée quand l'admin passe la commande à DELIVERED ; sert de point de départ
+  // au délai légal de rétractation de 14 jours (vente à distance UE).
+  deliveredAt DateTime?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)

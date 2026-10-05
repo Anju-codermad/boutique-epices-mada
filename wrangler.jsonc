@@ -1,0 +1,54 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "boutique-epices-mada",
+	"compatibility_date": "2026-10-05",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"vars": {
+		// Indique à lib/prisma.ts d'utiliser le point d'entrée Prisma "workerd" (moteur wasm,
+		// import statique) plutôt que le point d'entrée Node par défaut (moteur wasm chargé
+		// par WebAssembly.compile() dynamique, interdit dans le runtime Workers).
+		"BUILD_TARGET": "cloudflare"
+	},
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			// Liaison de service auto-référencée, le nom doit correspondre au "name" ci-dessus
+			// voir https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "boutique-epices-mada"
+		}
+	],
+	"r2_buckets": [
+		// Cache incrémental (ISR) — le bucket doit être créé avant le premier déploiement :
+		// npx wrangler r2 bucket create boutique-epices-mada-opennext-cache
+		{
+			"binding": "NEXT_INC_CACHE_R2_BUCKET",
+			"bucket_name": "boutique-epices-mada-opennext-cache"
+		}
+	],
+	"hyperdrive": [
+		// Un Worker ne peut pas réutiliser une connexion Postgres (socket pg.Pool) ouverte lors
+		// d'une requête précédente — Cloudflare l'interdit explicitement, ce qui provoque un
+		// blocage silencieux (annulé par le watchdog du runtime) dès la deuxième requête. Hyperdrive
+		// est la solution officielle Cloudflare : il maintient le vrai pool de connexions Postgres
+		// à la périphérie, en dehors de l'isolate ; voir lib/prisma.ts pour la création d'un client
+		// Prisma neuf à chaque accès côté Worker (rapide, puisque la connexion lourde vers Supabase
+		// est gérée par Hyperdrive, pas par le Worker).
+		//
+		// ⚠️ Avant un vrai déploiement (`npm run cf:deploy`), remplacer "id" par l'identifiant
+		// d'une configuration Hyperdrive réelle, créée depuis un compte Cloudflare authentifié :
+		//   npx wrangler hyperdrive create boutique-epices-mada --connection-string="<DATABASE_URL Supabase>"
+		// (impossible à faire depuis cet environnement, qui n'a pas d'accès à un compte Cloudflare réel).
+		// "localConnectionString" permet à `wrangler dev` de fonctionner en attendant, avec la même
+		// base locale que DATABASE_URL (voir .dev.vars) ; il est ignoré par un vrai déploiement.
+		{
+			"binding": "HYPERDRIVE",
+			"id": "placeholder-hyperdrive-id-a-remplacer-avant-deploiement",
+			"localConnectionString": "postgresql://postgres:postgres@localhost:5432/boutique"
+		}
+	]
+}

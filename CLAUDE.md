@@ -16,19 +16,39 @@ plan d'exécution fourni séparément et suivi au fil de l'eau dans `PROGRESS.md
 
 | Couche          | Choix                                                                                 |
 | --------------- | ------------------------------------------------------------------------------------- |
-| Frontend        | Next.js 14 (App Router) + TypeScript strict + Tailwind CSS + shadcn/ui + `next/image` |
-| Backend/BDD     | Prisma ORM + PostgreSQL via Supabase                                                  |
+| Frontend        | Next.js 15 (App Router) + TypeScript strict + Tailwind CSS + shadcn/ui + `next/image` |
+| Backend/BDD     | Prisma ORM (driver adapter `pg`, moteur wasm) + PostgreSQL via Supabase               |
 | Stockage images | Supabase Storage (Cloudinary en option)                                               |
 | Auth            | Auth.js v5 + adapter Prisma (magic link via Resend)                                   |
 | Paiement        | Stripe Checkout                                                                       |
 | Emails          | Resend + React Email                                                                  |
 | Monitoring      | Sentry                                                                                |
-| Analytics       | Plausible ou Vercel Analytics (sans cookie tiers)                                     |
+| Analytics       | Plausible (sans cookie tiers)                                                        |
 | Recherche       | Filtres + recherche texte Prisma locale (Algolia en option)                           |
-| Hébergement     | Vercel Pro                                                                            |
+| Hébergement     | Cloudflare Workers (adaptateur OpenNext) + Hyperdrive                                 |
 | Base de données | Supabase Pro                                                                          |
 | i18n            | next-intl (FR au lancement, EN + multi-devises en post-lancement)                     |
 | Tests           | Vitest (unitaire) + Playwright (E2E)                                                  |
+
+**Déviations par rapport au plan d'exécution initial** (décisions utilisateur explicites,
+voir `PROGRESS.md` pour le détail) :
+
+- **Hébergement : Cloudflare Workers plutôt que Vercel Pro.** Next.js 15 est requis par
+  l'adaptateur OpenNext Cloudflare (`@opennextjs/cloudflare`, nécessite next >=15.5.27) —
+  d'où la mise à jour de Next.js 14 vers 15 qui en découle.
+- **Prisma s'exécute via un driver adapter (`@prisma/adapter-pg`) et le moteur de requête
+  wasm (`engineType = "client"`)**, pas le moteur natif (binaire Rust), incompatible avec le
+  runtime Workers (pas de process natif, pas de compilation WASM dynamique). Voir
+  `lib/prisma.ts` : deux points d'entrée Prisma selon l'environnement (Node en local,
+  point d'entrée "workerd" sous Cloudflare), et un client neuf par requête sous Cloudflare
+  (connexion `pg.Pool` non réutilisable entre deux requêtes Workers) plutôt qu'un singleton.
+- **Cloudflare Hyperdrive** est nécessaire en production pour que ce client-par-requête
+  reste performant (pool de connexions Postgres géré à la périphérie, hors de l'isolate).
+  Son identifiant doit être créé depuis un vrai compte Cloudflare authentifié
+  (`npx wrangler hyperdrive create ...`) avant tout déploiement réel — voir le commentaire
+  dans `wrangler.jsonc`.
+- **Analytics : Plausible uniquement** (pas d'option Vercel Analytics, qui ne fonctionne que
+  déployé sur Vercel).
 
 ## Design system
 
@@ -60,6 +80,9 @@ npm test                 # tests Vitest
 npm run test:e2e          # tests Playwright
 npx prisma migrate dev    # migrations en développement
 npx prisma db seed        # seed (JAMAIS en production, voir règle ci-dessous)
+npm run cf:build           # build pour Cloudflare Workers (next build + opennextjs-cloudflare)
+npm run cf:preview         # build + wrangler dev (test local du runtime Workers)
+npm run cf:deploy          # build + déploiement réel (nécessite un compte Cloudflare authentifié)
 ```
 
 ## Règles impératives

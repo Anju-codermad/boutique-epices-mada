@@ -3,7 +3,9 @@ import type { Metadata } from 'next';
 import { ContactForm } from '@/components/shared/ContactForm';
 
 export const metadata: Metadata = {
-  title: "Contact — Boutique d'épices de Madagascar",
+  title: 'Contact',
+  description:
+    "Une question sur nos épices, votre commande ou une collaboration ? Contactez l'équipe de la Boutique d'épices de Madagascar.",
 };
 
 export default function ContactPage() {

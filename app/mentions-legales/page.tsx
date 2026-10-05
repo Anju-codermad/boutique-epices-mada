@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { LegalReviewNotice } from '@/components/shared/LegalReviewNotice';
 
 export const metadata: Metadata = {
-  title: "Mentions légales — Boutique d'épices de Madagascar",
+  title: 'Mentions légales',
 };
 
 export default function MentionsLegalesPage() {

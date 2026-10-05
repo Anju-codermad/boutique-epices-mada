@@ -1,12 +1,21 @@
+import type { Metadata } from 'next';
+
 import { Button } from '@/components/ui/Button';
+import { NOINDEX_ROBOTS } from '@/lib/seo';
 
 import { unsubscribeFromNewsletter } from './actions';
 
-export default function NewsletterDesinscriptionPage({
-  searchParams,
-}: {
-  searchParams: { email?: string };
-}) {
+export const metadata: Metadata = {
+  title: 'Désinscription newsletter',
+  robots: NOINDEX_ROBOTS,
+};
+
+export default async function NewsletterDesinscriptionPage(
+  props: {
+    searchParams: Promise<{ email?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const email = searchParams.email ?? '';
 
   return (

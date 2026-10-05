@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "FAQ — Boutique d'épices de Madagascar",
+  title: 'FAQ',
+  description:
+    'Livraison, retours et remboursements, origine et certifications de nos épices, moyens de paiement : toutes les réponses à vos questions.',
 };
 
 const faqItems = [

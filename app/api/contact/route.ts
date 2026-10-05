@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { sendContactEmail } from '@/lib/emails';
+import { checkContactRateLimit, clientIdentifier } from '@/lib/rate-limit';
 
 const contactSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -15,6 +16,14 @@ const contactSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const allowed = await checkContactRateLimit(clientIdentifier(request));
+  if (!allowed) {
+    return NextResponse.json(
+      { error: 'Trop de messages envoyés, réessayez plus tard.' },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json().catch(() => null);
   const parsed = contactSchema.safeParse(body);
 

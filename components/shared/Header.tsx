@@ -40,7 +40,10 @@ export function Header({ categories, session }: HeaderProps) {
             Épices de Madagascar
           </Link>
 
-          <nav className="hidden items-center gap-6 text-sm md:flex">
+          <nav
+            aria-label="Navigation principale"
+            className="hidden items-center gap-6 text-sm md:flex"
+          >
             <div
               className="relative"
               onMouseEnter={() => setCategoriesOpen(true)}
@@ -131,7 +134,7 @@ export function Header({ categories, session }: HeaderProps) {
             <div className="mb-4">
               <SearchBar />
             </div>
-            <nav className="flex flex-col gap-3 text-sm">
+            <nav aria-label="Navigation mobile" className="flex flex-col gap-3 text-sm">
               <Link href="/boutique" onClick={() => setMenuOpen(false)}>
                 Boutique
               </Link>

@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { LegalReviewNotice } from '@/components/shared/LegalReviewNotice';
 
 export const metadata: Metadata = {
-  title: "Politique de confidentialité — Boutique d'épices de Madagascar",
+  title: 'Politique de confidentialité',
 };
 
 export default function ConfidentialitePage() {
@@ -42,8 +42,8 @@ export default function ConfidentialitePage() {
               publié après modération, associé à votre compte.
             </li>
             <li>
-              <strong>Navigation</strong> : données techniques et cookies, dans les conditions
-              décrites par notre bandeau de gestion des cookies.
+              <strong>Navigation</strong> : mesure d&apos;audience anonymisée et sans cookie (voir
+              section 6 « Cookies »).
             </li>
           </ul>
         </section>
@@ -54,8 +54,9 @@ export default function ConfidentialitePage() {
           </h2>
           <p>
             Ces données sont traitées pour l&apos;exécution du contrat de vente (commandes,
-            livraison), sur la base de votre consentement (newsletter, cookies non essentiels), ou
-            pour notre intérêt légitime (amélioration du service, prévention de la fraude).
+            livraison), sur la base de votre consentement (newsletter), ou pour notre intérêt
+            légitime (amélioration du service, prévention de la fraude, mesure d&apos;audience
+            anonymisée).
           </p>
         </section>
 
@@ -86,10 +87,11 @@ export default function ConfidentialitePage() {
         <section>
           <h2 className="font-serif text-xl font-semibold text-forest">6. Cookies</h2>
           <p>
-            Le site utilise des cookies strictement nécessaires à son fonctionnement, ainsi que,
-            sous réserve de votre consentement, des cookies de mesure d&apos;audience. Vous pouvez
-            gérer vos préférences à tout moment via le bandeau de consentement affiché lors de votre
-            première visite.
+            Le site utilise uniquement des cookies strictement nécessaires à son fonctionnement
+            (maintien de votre connexion). Notre mesure d&apos;audience ne dépose aucun cookie et ne
+            collecte aucune donnée permettant de vous identifier individuellement : conformément aux
+            recommandations de la CNIL sur les outils exemptés, elle ne nécessite donc pas de
+            recueil de votre consentement, et aucun bandeau cookies n&apos;est affiché.
           </p>
         </section>
 

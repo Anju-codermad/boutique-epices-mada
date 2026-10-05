@@ -1,11 +1,20 @@
+import type { Metadata } from 'next';
+
 import { signIn } from '@/auth';
 import { Button } from '@/components/ui/Button';
+import { NOINDEX_ROBOTS } from '@/lib/seo';
 
-export default function ConnexionPage({
-  searchParams,
-}: {
-  searchParams: { callbackUrl?: string };
-}) {
+export const metadata: Metadata = {
+  title: 'Connexion',
+  robots: NOINDEX_ROBOTS,
+};
+
+export default async function ConnexionPage(
+  props: {
+    searchParams: Promise<{ callbackUrl?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   async function signInWithEmail(formData: FormData) {
     'use server';
     const email = formData.get('email');

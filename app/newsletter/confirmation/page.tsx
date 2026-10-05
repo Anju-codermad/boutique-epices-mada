@@ -1,12 +1,21 @@
+import type { Metadata } from 'next';
+
 import { prisma } from '@/lib/prisma';
+import { NOINDEX_ROBOTS } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewsletterConfirmationPage({
-  searchParams,
-}: {
-  searchParams: { token?: string };
-}) {
+export const metadata: Metadata = {
+  title: 'Confirmation newsletter',
+  robots: NOINDEX_ROBOTS,
+};
+
+export default async function NewsletterConfirmationPage(
+  props: {
+    searchParams: Promise<{ token?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const token = searchParams.token;
 
   if (!token) {
