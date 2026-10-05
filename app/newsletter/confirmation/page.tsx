@@ -10,11 +10,12 @@ export const metadata: Metadata = {
   robots: NOINDEX_ROBOTS,
 };
 
-export default async function NewsletterConfirmationPage({
-  searchParams,
-}: {
-  searchParams: { token?: string };
-}) {
+export default async function NewsletterConfirmationPage(
+  props: {
+    searchParams: Promise<{ token?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const token = searchParams.token;
 
   if (!token) {

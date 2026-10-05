@@ -10,11 +10,12 @@ export const metadata: Metadata = {
   robots: NOINDEX_ROBOTS,
 };
 
-export default function NewsletterDesinscriptionPage({
-  searchParams,
-}: {
-  searchParams: { email?: string };
-}) {
+export default async function NewsletterDesinscriptionPage(
+  props: {
+    searchParams: Promise<{ email?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const email = searchParams.email ?? '';
 
   return (

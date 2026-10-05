@@ -49,11 +49,12 @@ function buildQueryString(
   return qs ? `?${qs}` : '';
 }
 
-export default async function BoutiquePage({
-  searchParams,
-}: {
-  searchParams: BoutiqueSearchParams;
-}) {
+export default async function BoutiquePage(
+  props: {
+    searchParams: Promise<BoutiqueSearchParams>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const page = Math.max(1, Number(searchParams.page) || 1);
   const sort: ProductSort = SORT_OPTIONS.includes(searchParams.sort as ProductSort)
     ? (searchParams.sort as ProductSort)

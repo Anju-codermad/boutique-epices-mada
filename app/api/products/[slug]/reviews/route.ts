@@ -9,7 +9,8 @@ const reviewSchema = z.object({
   comment: z.string().trim().min(1).max(2000),
 });
 
-export async function POST(request: NextRequest, { params }: { params: { slug: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: 'Connexion requise' }, { status: 401 });

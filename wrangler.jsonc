@@ -1,0 +1,27 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"main": ".open-next/worker.js",
+	"name": "boutique-epices-mada",
+	"compatibility_date": "2026-10-05",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"assets": {
+		"directory": ".open-next/assets",
+		"binding": "ASSETS"
+	},
+	"services": [
+		{
+			// Liaison de service auto-référencée, le nom doit correspondre au "name" ci-dessus
+			// voir https://opennext.js.org/cloudflare/caching
+			"binding": "WORKER_SELF_REFERENCE",
+			"service": "boutique-epices-mada"
+		}
+	],
+	"r2_buckets": [
+		// Cache incrémental (ISR) — le bucket doit être créé avant le premier déploiement :
+		// npx wrangler r2 bucket create boutique-epices-mada-opennext-cache
+		{
+			"binding": "NEXT_INC_CACHE_R2_BUCKET",
+			"bucket_name": "boutique-epices-mada-opennext-cache"
+		}
+	]
+}

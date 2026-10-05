@@ -9,11 +9,12 @@ export const metadata: Metadata = {
   robots: NOINDEX_ROBOTS,
 };
 
-export default function ConnexionPage({
-  searchParams,
-}: {
-  searchParams: { callbackUrl?: string };
-}) {
+export default async function ConnexionPage(
+  props: {
+    searchParams: Promise<{ callbackUrl?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   async function signInWithEmail(formData: FormData) {
     'use server';
     const email = formData.get('email');

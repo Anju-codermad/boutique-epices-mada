@@ -16,7 +16,8 @@ import {
   deleteImage,
 } from '../actions';
 
-export default async function EditProduitPage({ params }: { params: { id: string } }) {
+export default async function EditProduitPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const session = await auth();
   if (session?.user?.role !== 'ADMIN') {
     return null;

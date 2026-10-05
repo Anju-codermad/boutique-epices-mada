@@ -1,5 +1,12 @@
+// Driver adapters (voir lib/prisma.ts) : le moteur de requête natif (binaire Rust) ne peut
+// pas s'exécuter dans le runtime Cloudflare Workers (pas de process natif). Stable depuis
+// cette version de Prisma, plus besoin de previewFeatures.
+// engineType "client" : moteur 100% TypeScript (le "query compiler"), sans binaire natif ni
+// compilation WASM à l'exécution (Workers interdit WebAssembly.compile() dynamique) —
+// nécessaire en plus de l'adaptateur pour tourner dans ce runtime.
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {

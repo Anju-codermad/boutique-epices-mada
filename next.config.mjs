@@ -39,10 +39,23 @@ const nextConfig = {
         pathname: '/storage/v1/object/public/**',
       },
     ],
+    // L'optimiseur d'images natif de Next (sharp, binaire natif) ne fonctionne pas dans le
+    // runtime Cloudflare Workers. Le binding Cloudflare Images permettrait de la réactiver,
+    // mais dépend du plan Cloudflare du compte (non vérifiable depuis cet environnement) —
+    // voir https://opennext.js.org/cloudflare/howtos/image. En attendant, `next/image` reste
+    // utilisé partout (conforme à la règle CLAUDE.md) pour le lazy loading et le layout, mais
+    // sert les images telles quelles plutôt que de les retailler/convertir côté serveur.
+    unoptimized: true,
   },
   async headers() {
     return [{ source: '/:path*', headers: SECURITY_HEADERS }];
   },
+  // Empêche webpack de bundler Prisma (require dynamiques, moteur wasm/natif) : résolu tel
+  // quel depuis node_modules à l'exécution, par chaque environnement selon ses propres règles
+  // (Node.js en local, le re-bundling esbuild d'OpenNext pour Cloudflare Workers — voir
+  // lib/prisma.ts). Tenter de laisser webpack le bundler lui-même menait à une incohérence de
+  // chemin entre où le fichier .wasm était écrit et où le code généré le cherchait.
+  serverExternalPackages: ['@prisma/client'],
 };
 
 // Sans SENTRY_ORG/SENTRY_PROJECT/SENTRY_AUTH_TOKEN (aucun compte Sentry réel pour l'instant),
