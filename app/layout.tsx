@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { Playfair_Display, Inter } from 'next/font/google';
-import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
 
 import { auth } from '@/auth';
@@ -85,7 +84,16 @@ export default async function RootLayout({
         />
         <div id="main-content">{children}</div>
         <Footer />
-        <Analytics />
+        {/* Plausible plutôt que Vercel Analytics (qui ne fonctionne qu'hébergé sur Vercel) :
+            script auto-hébergé ou cloud Plausible, sans cookie tiers. Ne s'affiche que si
+            l'instance est configurée, comme Sentry plus haut. */}
+        {process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN ? (
+          <script
+            defer
+            data-domain={process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
+            src={`${process.env.NEXT_PUBLIC_PLAUSIBLE_SCRIPT_URL ?? 'https://plausible.io/js/script.js'}`}
+          />
+        ) : null}
       </body>
     </html>
   );

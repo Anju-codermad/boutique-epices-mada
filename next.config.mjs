@@ -3,17 +3,19 @@ import { withSentryConfig } from '@sentry/nextjs';
 // CSP volontairement permissive sur script-src/style-src ('unsafe-inline', pas de nonce) :
 // une politique stricte à base de nonces nécessite de générer le nonce dans le middleware
 // (aujourd'hui limité aux routes /compte et /admin) et de la vérifier contre un vrai
-// déploiement Vercel avant d'être fiable — prévu en durcissement post-lancement plutôt que
-// livré ici sans pouvoir le valider en conditions réelles. Les autres directives (object-src,
+// déploiement avant d'être fiable — prévu en durcissement post-lancement plutôt que livré
+// ici sans pouvoir le valider en conditions réelles. Les autres directives (object-src,
 // frame-ancestors, form-action, base-uri) apportent déjà une protection réelle contre
 // l'injection de scripts/frames tiers et le détournement de formulaire.
+// plausible.io : script d'analytics (voir app/layout.tsx) — sans effet si
+// NEXT_PUBLIC_PLAUSIBLE_DOMAIN n'est pas défini, donc autorisé même si inutilisé.
 const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' https://plausible.io",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https://*.supabase.co",
   "font-src 'self' data:",
-  "connect-src 'self'",
+  "connect-src 'self' https://plausible.io",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "base-uri 'self'",
