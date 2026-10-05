@@ -29,5 +29,26 @@
 			"binding": "NEXT_INC_CACHE_R2_BUCKET",
 			"bucket_name": "boutique-epices-mada-opennext-cache"
 		}
+	],
+	"hyperdrive": [
+		// Un Worker ne peut pas réutiliser une connexion Postgres (socket pg.Pool) ouverte lors
+		// d'une requête précédente — Cloudflare l'interdit explicitement, ce qui provoque un
+		// blocage silencieux (annulé par le watchdog du runtime) dès la deuxième requête. Hyperdrive
+		// est la solution officielle Cloudflare : il maintient le vrai pool de connexions Postgres
+		// à la périphérie, en dehors de l'isolate ; voir lib/prisma.ts pour la création d'un client
+		// Prisma neuf à chaque accès côté Worker (rapide, puisque la connexion lourde vers Supabase
+		// est gérée par Hyperdrive, pas par le Worker).
+		//
+		// ⚠️ Avant un vrai déploiement (`npm run cf:deploy`), remplacer "id" par l'identifiant
+		// d'une configuration Hyperdrive réelle, créée depuis un compte Cloudflare authentifié :
+		//   npx wrangler hyperdrive create boutique-epices-mada --connection-string="<DATABASE_URL Supabase>"
+		// (impossible à faire depuis cet environnement, qui n'a pas d'accès à un compte Cloudflare réel).
+		// "localConnectionString" permet à `wrangler dev` de fonctionner en attendant, avec la même
+		// base locale que DATABASE_URL (voir .dev.vars) ; il est ignoré par un vrai déploiement.
+		{
+			"binding": "HYPERDRIVE",
+			"id": "placeholder-hyperdrive-id-a-remplacer-avant-deploiement",
+			"localConnectionString": "postgresql://postgres:postgres@localhost:5432/boutique"
+		}
 	]
 }
