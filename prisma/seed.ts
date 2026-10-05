@@ -4,9 +4,14 @@
  * ⚠️ Ne JAMAIS exécuter ce script sur la base de données de production.
  * Réservé au local/staging (`npx prisma db seed`).
  */
+import { PrismaPg } from '@prisma/adapter-pg';
 import { CertificationType, PrismaClient } from '@prisma/client';
 
-const prisma = new PrismaClient();
+// Le générateur Prisma utilise engineType "client" (voir schema.prisma) : il n'y a plus de
+// moteur natif de secours, un driver adapter est obligatoire même pour ce script exécuté
+// directement via `tsx` (hors de l'app Next.js, donc hors de lib/prisma.ts).
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 
 type SeedVariant = {
   sku: string;
