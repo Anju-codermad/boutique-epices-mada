@@ -25,6 +25,16 @@ remplacer Vercel par **Cloudflare Workers** comme hébergement (voir section dé
 ci-dessous), ce qui a entraîné la mise à jour vers **Next.js 15** et le remplacement de
 Vercel Analytics par Plausible. Le stack technique de `CLAUDE.md` est à jour.
 
+**Mise à jour (session déploiement GitHub Actions)** : l'environnement d'exécution de Claude
+Code bloque `api.cloudflare.com` (politique réseau). Décision utilisateur : déployer depuis
+**GitHub Actions** (`.github/workflows/deploy.yml`, à chaque push sur `main` ou manuellement).
+Le workflow applique `prisma migrate deploy` (jamais le seed), crée le bucket R2 s'il manque,
+injecte l'ID Hyperdrive depuis le secret `HYPERDRIVE_ID`, déploie, puis transmet les secrets
+du Worker. **Bloquant restant (humain)** : créer la configuration Hyperdrive dans le tableau de
+bord Cloudflare et renseigner les secrets GitHub (`CLOUDFLARE_API_TOKEN`,
+`CLOUDFLARE_ACCOUNT_ID`, `HYPERDRIVE_ID`, `DATABASE_URL`) — voir README. Un cahier des
+charges a aussi été rédigé (document Claude, hors dépôt) pour vérifier le site déployé.
+
 ## Fait
 
 - [x] `CLAUDE.md` créé (stack, palette, structure de dossiers, règles impératives).
