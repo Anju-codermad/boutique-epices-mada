@@ -35,6 +35,16 @@ bord Cloudflare et renseigner les secrets GitHub (`CLOUDFLARE_API_TOKEN`,
 `CLOUDFLARE_ACCOUNT_ID`, `HYPERDRIVE_ID`, `DATABASE_URL`) — voir README. Un cahier des
 charges a aussi été rédigé (document Claude, hors dépôt) pour vérifier le site déployé.
 
+**Mise à jour (premier déploiement réel)** : site en ligne sur
+https://boutique-epices-mada.julioandrinirina95.workers.dev (Supabase plan gratuit, région
+eu-west-1, Data API désactivée ; Hyperdrive public). Correctif nécessaire au build : un secret
+GitHub absent est transmis comme chaîne vide (`??` → `||` dans `lib/url.ts`). **Exception
+explicite de l'utilisateur à la règle « jamais de seed en production »** : cette base sert de
+base de TEST, les produits de démonstration y sont chargés via le workflow manuel
+`.github/workflows/seed-demo.yml` (confirmation « CHARGER »). ⚠️ Supprimer ce workflow et
+repartir d'une base propre avant le vrai lancement. Restent à configurer : Resend (connexion,
+emails, accès admin), Stripe (paiement), Supabase Storage (photos).
+
 ## Fait
 
 - [x] `CLAUDE.md` créé (stack, palette, structure de dossiers, règles impératives).
