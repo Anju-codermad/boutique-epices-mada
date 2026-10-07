@@ -50,6 +50,28 @@ avec le driver adapter `pg` (le moteur de requête natif ne peut pas s'exécuter
 runtime Workers) et **Cloudflare Hyperdrive** pour le pooling de connexions (voir
 `CLAUDE.md` pour le détail technique de ces deux contraintes).
 
+### Déploiement automatique (GitHub Actions) — méthode recommandée
+
+Le workflow `.github/workflows/deploy.yml` déploie le site depuis les serveurs de GitHub à
+chaque push sur `main` (ou manuellement : onglet **Actions → Déploiement Cloudflare → Run
+workflow**). Il applique les migrations Prisma (jamais le seed), crée le bucket R2 du cache
+s'il manque, injecte l'identifiant Hyperdrive, construit et déploie le Worker, puis lui
+transmet ses secrets.
+
+À faire une seule fois :
+
+1. Tableau de bord Cloudflare → **Storage & Databases → Hyperdrive → Create configuration**,
+   avec la chaîne de connexion Supabase « Session pooler » (port 5432). Noter son **ID**.
+2. GitHub → **Settings → Secrets and variables → Actions → New repository secret**, créer :
+   `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `HYPERDRIVE_ID`, `DATABASE_URL` (même
+   chaîne « Session pooler »). Les autres variables de `.env.example` (`AUTH_SECRET`,
+   `STRIPE_SECRET_KEY`, …) peuvent être ajoutées de la même façon, elles seront transmises
+   au Worker si elles existent.
+3. Le jeton Cloudflare doit avoir les droits : Workers Scripts (Edit), Workers R2 Storage
+   (Edit), Hyperdrive (Edit), Account Settings (Read).
+
+Les sections ci-dessous décrivent les mêmes étapes en manuel.
+
 ### 1. Base de données Supabase
 
 1. Créer un projet Supabase (mode production).
