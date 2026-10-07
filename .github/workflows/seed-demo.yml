@@ -1,0 +1,44 @@
+name: Données de démonstration (base de test)
+
+# Charge les produits de démonstration (prisma/seed.ts) dans la base pointée par le secret
+# DATABASE_URL. Exception explicite et temporaire à la règle « jamais de seed en production »
+# de CLAUDE.md, décidée par l'utilisateur tant que cette base Supabase sert de base de TEST.
+# ⚠️ Supprimer ce workflow avant le vrai lancement commercial.
+#
+# Lancement manuel uniquement : Actions → « Données de démonstration » → Run workflow, en
+# tapant CHARGER dans le champ de confirmation. Le script est idempotent (upsert).
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Tapez CHARGER pour confirmer (base de TEST uniquement)'
+        required: true
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Vérifier la confirmation
+        if: ${{ inputs.confirmation != 'CHARGER' }}
+        run: |
+          echo "::error::Confirmation absente : tapez CHARGER pour lancer le chargement."
+          exit 1
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Charger les données de démonstration
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma db seed
