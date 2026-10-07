@@ -20,16 +20,21 @@ export default async function Home() {
     <main>
       <section className="bg-forest py-24 text-center text-white">
         <div className="container">
-          <h1 className="font-serif text-4xl font-bold sm:text-5xl">
+          <h1 className="font-serif text-4xl font-bold duration-700 animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-both sm:text-5xl">
             Les épices de Madagascar, directement du producteur à votre table
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-white/85">
+          <p className="mx-auto mt-4 max-w-2xl text-white/85 delay-150 duration-700 animate-in fade-in-0 slide-in-from-bottom-6 fill-mode-both">
             Vanille, poivre sauvage, cannelle, curcuma et bien plus — commerce équitable, vente
             directe depuis Madagascar, qualité premium.
           </p>
           <Link
             href="/boutique"
-            className={buttonVariants({ variant: 'primary', size: 'lg', className: 'mt-8' })}
+            className={buttonVariants({
+              variant: 'primary',
+              size: 'lg',
+              className:
+                'mt-8 delay-300 duration-700 animate-in fade-in-0 zoom-in-95 fill-mode-both',
+            })}
           >
             Découvrir la boutique
           </Link>
@@ -37,7 +42,7 @@ export default async function Home() {
       </section>
 
       <section className="container py-16">
-        <h2 className="text-center font-serif text-3xl font-bold text-forest">
+        <h2 className="reveal text-center font-serif text-3xl font-bold text-forest">
           Nos familles d&apos;épices
         </h2>
         <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
@@ -45,7 +50,7 @@ export default async function Home() {
             <Link
               key={category.slug}
               href={`/boutique?category=${category.slug}`}
-              className="rounded-lg border border-border p-6 text-center transition-colors hover:border-terracotta hover:bg-terracotta/5"
+              className="reveal rounded-lg border border-border p-6 text-center transition-all duration-300 hover:-translate-y-1 hover:border-terracotta hover:bg-terracotta/5 hover:shadow-md"
             >
               <span className="font-serif text-lg font-semibold text-forest">{category.name}</span>
             </Link>
@@ -56,12 +61,16 @@ export default async function Home() {
       {featuredProducts.length > 0 ? (
         <section className="bg-muted/40 py-16">
           <div className="container">
-            <h2 className="text-center font-serif text-3xl font-bold text-forest">
+            <h2 className="reveal text-center font-serif text-3xl font-bold text-forest">
               Nos nouveautés
             </h2>
             <div className="mt-8 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
-              {featuredProducts.map((product) => (
-                <ProductCard key={product.id} product={serializeProductListItem(product)} />
+              {featuredProducts.map((product, index) => (
+                <ProductCard
+                  key={product.id}
+                  product={serializeProductListItem(product)}
+                  index={index}
+                />
               ))}
             </div>
           </div>
@@ -69,7 +78,7 @@ export default async function Home() {
       ) : null}
 
       <section className="container py-16">
-        <div className="mx-auto max-w-3xl text-center">
+        <div className="reveal mx-auto max-w-3xl text-center">
           <h2 className="font-serif text-3xl font-bold text-forest">
             Commerce équitable, vente directe
           </h2>
@@ -82,7 +91,7 @@ export default async function Home() {
       </section>
 
       <section className="border-t border-border bg-muted/40 py-10">
-        <div className="container grid grid-cols-2 gap-6 text-center text-sm sm:grid-cols-4">
+        <div className="reveal container grid grid-cols-2 gap-6 text-center text-sm sm:grid-cols-4">
           <div>
             <p className="font-serif text-lg font-semibold text-forest">Livraison</p>
             <p className="mt-1 text-muted-foreground">Offerte dès 49€ d&apos;achat</p>
