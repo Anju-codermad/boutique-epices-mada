@@ -9,6 +9,12 @@ name: Données de démonstration (base de test)
 # tapant CHARGER dans le champ de confirmation. Le script est idempotent (upsert).
 
 on:
+  # Le push de ce fichier sert uniquement à faire enregistrer le workflow par GitHub (un
+  # workflow purement manuel n'apparaît pas tant qu'aucun événement ne l'a déclenché) ;
+  # le job est ignoré dans ce cas, rien n'est chargé.
+  push:
+    branches: [main]
+    paths: ['.github/workflows/seed-demo.yml']
   workflow_dispatch:
     inputs:
       confirmation:
@@ -17,6 +23,7 @@ on:
 
 jobs:
   seed:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Vérifier la confirmation
