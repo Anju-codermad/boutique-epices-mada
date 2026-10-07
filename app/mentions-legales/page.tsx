@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { LegalReviewNotice } from '@/components/shared/LegalReviewNotice';
+import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_HREF } from '@/lib/contact';
 
 export const metadata: Metadata = {
   title: 'Mentions légales',
@@ -27,6 +28,8 @@ export default function MentionsLegalesPage() {
             Numéro de TVA intracommunautaire : [numéro à compléter]
             <br />
             Directeur de la publication : [nom à compléter]
+            <br />
+            Téléphone : <a href={CONTACT_PHONE_HREF}>{CONTACT_PHONE_DISPLAY}</a>
             <br />
             Contact : voir la page{' '}
             <a href="/contact" className="text-terracotta hover:underline">

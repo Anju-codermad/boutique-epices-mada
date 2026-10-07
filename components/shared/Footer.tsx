@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { Phone } from 'lucide-react';
+
+import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_HREF } from '@/lib/contact';
 
 import { NewsletterForm } from './NewsletterForm';
 
@@ -48,7 +51,15 @@ export function Footer() {
         </div>
 
         <div>
-          <h2 className="font-serif text-lg font-semibold text-forest">Suivez-nous</h2>
+          <h2 className="font-serif text-lg font-semibold text-forest">Nous contacter</h2>
+          <a
+            href={CONTACT_PHONE_HREF}
+            className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-terracotta"
+          >
+            <Phone className="h-4 w-4" aria-hidden="true" />
+            {CONTACT_PHONE_DISPLAY}
+          </a>
+          <h2 className="mt-6 font-serif text-lg font-semibold text-forest">Suivez-nous</h2>
           <div className="mt-2 flex gap-4 text-sm text-muted-foreground">
             <a
               href="https://instagram.com"

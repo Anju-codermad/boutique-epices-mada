@@ -45,6 +45,15 @@ base de TEST, les produits de démonstration y sont chargés via le workflow man
 repartir d'une base propre avant le vrai lancement. Restent à configurer : Resend (connexion,
 emails, accès admin), Stripe (paiement), Supabase Storage (photos).
 
+**Mise à jour (animations + téléphone)** : animations en CSS pur, sans dépendance ajoutée
+(`tailwindcss-animate` déjà présent) — boutons (soulèvement, pression), cartes produit
+(soulèvement, zoom de l'image, apparition décalée), menu Catégories et menu mobile (fondu),
+tiroir panier (glissement), soulignement animé des liens, fondu entre les pages
+(`app/template.tsx`), apparition au défilement sur l'accueil (`.reveal`, `animation-timeline`,
+sans effet sur les navigateurs non compatibles). Tout est désactivé si le visiteur a demandé
+de réduire les animations (`prefers-reduced-motion`). Numéro de téléphone +261 34 12 285 53
+centralisé dans `lib/contact.ts` (pied de page, page Contact, mentions légales).
+
 ## Fait
 
 - [x] `CLAUDE.md` créé (stack, palette, structure de dossiers, règles impératives).

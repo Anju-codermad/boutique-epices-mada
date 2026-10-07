@@ -10,7 +10,13 @@ import { useCart } from '@/hooks/useCart';
 import { formatPriceTtc } from '@/lib/format';
 import type { ProductListItem } from '@/types/product';
 
-export function ProductCard({ product }: { product: ProductListItem }) {
+interface ProductCardProps {
+  product: ProductListItem;
+  /** Position dans la grille, pour décaler légèrement l'apparition des cartes. */
+  index?: number;
+}
+
+export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const addItem = useCart((state) => state.addItem);
 
   function handleQuickAdd() {
@@ -32,15 +38,18 @@ export function ProductCard({ product }: { product: ProductListItem }) {
   }
 
   return (
-    <Card className="flex h-full flex-col overflow-hidden">
+    <Card
+      className="group flex h-full flex-col overflow-hidden duration-500 animate-in fade-in-0 slide-in-from-bottom-4 fill-mode-both hover:-translate-y-1 hover:border-terracotta/40 hover:shadow-lg"
+      style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+    >
       <Link href={`/produits/${product.slug}`} className="block">
-        <div className="relative aspect-square bg-muted">
+        <div className="relative aspect-square overflow-hidden bg-muted">
           {product.image ? (
             <Image
               src={product.image.url}
               alt={product.image.alt}
               fill
-              className="object-cover"
+              className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
             />
           ) : (
@@ -63,7 +72,9 @@ export function ProductCard({ product }: { product: ProductListItem }) {
           {product.isNew ? <Badge variant="nouveau" /> : null}
         </div>
         <Link href={`/produits/${product.slug}`}>
-          <h3 className="font-serif text-lg font-semibold hover:text-terracotta">{product.name}</h3>
+          <h3 className="font-serif text-lg font-semibold transition-colors group-hover:text-terracotta">
+            {product.name}
+          </h3>
         </Link>
       </CardHeader>
 

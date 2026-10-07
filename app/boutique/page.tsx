@@ -49,11 +49,7 @@ function buildQueryString(
   return qs ? `?${qs}` : '';
 }
 
-export default async function BoutiquePage(
-  props: {
-    searchParams: Promise<BoutiqueSearchParams>;
-  }
-) {
+export default async function BoutiquePage(props: { searchParams: Promise<BoutiqueSearchParams> }) {
   const searchParams = await props.searchParams;
   const page = Math.max(1, Number(searchParams.page) || 1);
   const sort: ProductSort = SORT_OPTIONS.includes(searchParams.sort as ProductSort)
@@ -196,8 +192,8 @@ export default async function BoutiquePage(
             <p className="text-muted-foreground">Aucun produit ne correspond à votre recherche.</p>
           ) : (
             <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-4">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {products.map((product, index) => (
+                <ProductCard key={product.id} product={product} index={index} />
               ))}
             </div>
           )}

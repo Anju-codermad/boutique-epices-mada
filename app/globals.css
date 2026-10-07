@@ -37,8 +37,80 @@
   }
 }
 
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  /* Transition douce par défaut sur les liens et boutons (les classes utilitaires gardent la main). */
+  a,
+  button {
+    transition-property: color, background-color, border-color, box-shadow, transform;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
+  }
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Soulignement animé des liens de navigation (se déploie depuis la gauche au survol). */
+  .link-underline {
+    position: relative;
+  }
+  .link-underline::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    height: 2px;
+    width: 100%;
+    background-color: #c17a4f;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 250ms ease-out;
+  }
+  .link-underline:hover::after,
+  .link-underline:focus-visible::after,
+  .link-underline[aria-expanded='true']::after {
+    transform: scaleX(1);
+  }
+
+  /* Apparition au défilement, en CSS pur (animation-timeline). Navigateurs non compatibles :
+     le contenu reste simplement visible, sans animation. */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 20%;
+    }
+  }
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Accessibilité : aucune animation pour les visiteurs qui ont demandé à les réduire. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    animation: none !important;
   }
 }

@@ -36,7 +36,10 @@ export function Header({ categories, session }: HeaderProps) {
     <>
       <header className="sticky top-0 z-30 border-b border-border bg-background">
         <div className="container flex h-16 items-center justify-between gap-4">
-          <Link href="/" className="font-serif text-xl font-bold text-forest">
+          <Link
+            href="/"
+            className="font-serif text-xl font-bold text-forest transition-colors hover:text-terracotta"
+          >
             Épices de Madagascar
           </Link>
 
@@ -51,18 +54,18 @@ export function Header({ categories, session }: HeaderProps) {
             >
               <button
                 type="button"
-                className="hover:text-terracotta"
+                className="link-underline hover:text-terracotta"
                 aria-expanded={categoriesOpen}
               >
                 Catégories
               </button>
               {categoriesOpen ? (
-                <ul className="absolute left-0 top-full w-56 rounded-md border border-border bg-background py-2 shadow-lg">
+                <ul className="absolute left-0 top-full w-56 origin-top-left rounded-md border border-border bg-background py-2 shadow-lg duration-200 animate-in fade-in-0 zoom-in-95 slide-in-from-top-2">
                   {categories.map((category) => (
                     <li key={category.slug}>
                       <Link
                         href={`/boutique?category=${category.slug}`}
-                        className="block px-4 py-2 hover:bg-muted"
+                        className="block px-4 py-2 transition-all duration-200 hover:bg-muted hover:pl-6 hover:text-terracotta"
                       >
                         {category.name}
                       </Link>
@@ -71,10 +74,10 @@ export function Header({ categories, session }: HeaderProps) {
                 </ul>
               ) : null}
             </div>
-            <Link href="/boutique" className="hover:text-terracotta">
+            <Link href="/boutique" className="link-underline hover:text-terracotta">
               Boutique
             </Link>
-            <Link href="/contact" className="hover:text-terracotta">
+            <Link href="/contact" className="link-underline hover:text-terracotta">
               Contact
             </Link>
           </nav>
@@ -105,13 +108,16 @@ export function Header({ categories, session }: HeaderProps) {
             <button
               ref={cartButtonRef}
               type="button"
-              className="relative"
+              className="relative transition-transform duration-200 hover:scale-110 active:scale-95"
               aria-label="Panier"
               onClick={() => setCartOpen(true)}
             >
               <ShoppingBag className="h-6 w-6 text-forest" />
               {itemCount > 0 ? (
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-terracotta text-xs font-semibold text-white">
+                <span
+                  key={itemCount}
+                  className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-terracotta text-xs font-semibold text-white duration-300 animate-in zoom-in-50"
+                >
                   {itemCount}
                 </span>
               ) : null}
@@ -119,18 +125,22 @@ export function Header({ categories, session }: HeaderProps) {
 
             <button
               type="button"
-              className="md:hidden"
+              className="transition-transform duration-200 active:scale-90 md:hidden"
               aria-label="Ouvrir le menu"
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
             >
-              {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              {menuOpen ? (
+                <X className="h-6 w-6 duration-200 animate-in spin-in-90" />
+              ) : (
+                <Menu className="h-6 w-6 duration-200 animate-in fade-in-0" />
+              )}
             </button>
           </div>
         </div>
 
         {menuOpen ? (
-          <div className="border-t border-border px-4 py-4 md:hidden">
+          <div className="border-t border-border px-4 py-4 duration-200 animate-in fade-in-0 slide-in-from-top-2 md:hidden">
             <div className="mb-4">
               <SearchBar />
             </div>

@@ -76,17 +76,26 @@ export function CartDrawer({ open, onClose, triggerRef }: CartDrawerProps) {
 
   return (
     <div className="fixed inset-0 z-40">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-black/40 duration-300 animate-in fade-in-0"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Panier"
-        className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col bg-background shadow-xl"
+        className="absolute right-0 top-0 flex h-full w-full max-w-sm flex-col bg-background shadow-xl duration-300 ease-out animate-in slide-in-from-right"
       >
         <div className="flex items-center justify-between border-b border-border p-4">
           <h2 className="font-serif text-lg font-semibold">Votre panier</h2>
-          <button type="button" onClick={onClose} aria-label="Fermer le panier">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer le panier"
+            className="rounded-full p-1 transition-transform duration-200 hover:rotate-90 hover:bg-muted"
+          >
             <X className="h-5 w-5" />
           </button>
         </div>
